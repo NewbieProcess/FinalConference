@@ -1,0 +1,138 @@
+<html>
+<head>
+<title>Main.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #7a7e85;}
+.s3 { color: #bcbec4;}
+.s4 { color: #6aab73;}
+.s5 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+Main.py</font>
+</center></td></tr></table>
+<pre><span class="s0">import </span><span class="s1">streamlit </span><span class="s0">as </span><span class="s1">st</span>
+<span class="s0">import </span><span class="s1">numpy </span><span class="s0">as </span><span class="s1">np</span>
+<span class="s0">import </span><span class="s1">cv2 </span><span class="s2"># Keep cv2 for potential future uses, though tf.keras.preprocessing handles core loading now</span>
+<span class="s0">from </span><span class="s1">PIL </span><span class="s0">import </span><span class="s1">Image </span><span class="s2"># PIL is still used by Streamlit for uploaded files and camera input</span>
+<span class="s0">import </span><span class="s1">tensorflow </span><span class="s0">as </span><span class="s1">tf</span>
+<span class="s0">from </span><span class="s1">tensorflow</span><span class="s3">.</span><span class="s1">keras</span><span class="s3">.</span><span class="s1">models </span><span class="s0">import </span><span class="s1">load_model</span>
+<span class="s0">import </span><span class="s1">tempfile</span>
+<span class="s0">import </span><span class="s1">os</span>
+
+<span class="s2"># --- Constants ---</span>
+<span class="s2"># IMPORTANT: Double check this path! Remove the '!' if it's not part of the actual filename.</span>
+<span class="s1">MODEL_PATH </span><span class="s3">= </span><span class="s4">&quot;2A.FinalJingJing_320x280.keras&quot; </span><span class="s2"># Assuming the '!' was a typo or placeholder based on common practice</span>
+<span class="s1">class_names </span><span class="s3">= [</span><span class="s4">&quot;Healthy&quot;</span><span class="s3">, </span><span class="s4">&quot;Pinguecula&quot;</span><span class="s3">, </span><span class="s4">&quot;Pterygium Stage1(Trace-Mild)&quot;</span><span class="s3">, </span><span class="s4">&quot;Pterygium Stage2(Moderate-Severe)&quot;</span><span class="s3">]</span>
+
+<span class="s2"># --- Model Loading ---</span>
+<span class="s3">@</span><span class="s1">st</span><span class="s3">.</span><span class="s1">cache_resource</span>
+<span class="s0">def </span><span class="s1">load_trained_model</span><span class="s3">():</span>
+    <span class="s0">try</span><span class="s3">:</span>
+        <span class="s1">model </span><span class="s3">= </span><span class="s1">load_model</span><span class="s3">(</span><span class="s1">MODEL_PATH</span><span class="s3">)</span>
+        <span class="s1">st</span><span class="s3">.</span><span class="s1">success</span><span class="s3">(</span><span class="s4">f&quot;Model '</span><span class="s0">{</span><span class="s1">MODEL_PATH</span><span class="s0">}</span><span class="s4">' loaded successfully!&quot;</span><span class="s3">) </span><span class="s2"># Optional: for debugging</span>
+        <span class="s0">return </span><span class="s1">model</span>
+    <span class="s0">except </span><span class="s1">Exception </span><span class="s0">as </span><span class="s1">e</span><span class="s3">:</span>
+        <span class="s1">st</span><span class="s3">.</span><span class="s1">error</span><span class="s3">(</span><span class="s4">f&quot;Error loading model from </span><span class="s0">{</span><span class="s1">MODEL_PATH</span><span class="s0">}</span><span class="s4">: </span><span class="s0">{</span><span class="s1">e</span><span class="s0">}</span><span class="s4">&quot;</span><span class="s3">)</span>
+        <span class="s1">st</span><span class="s3">.</span><span class="s1">stop</span><span class="s3">() </span><span class="s2"># Stop the app if the model can't be loaded</span>
+        <span class="s0">return None</span>
+
+<span class="s1">model </span><span class="s3">= </span><span class="s1">load_trained_model</span><span class="s3">()</span>
+
+
+<span class="s2"># --- Image Preprocessing Function ---</span>
+<span class="s0">def </span><span class="s1">preprocess_image_for_model</span><span class="s3">(</span><span class="s1">pil_image_or_path</span><span class="s3">):</span>
+    <span class="s1">temp_file </span><span class="s3">= </span><span class="s0">None</span>
+    <span class="s0">if </span><span class="s1">isinstance</span><span class="s3">(</span><span class="s1">pil_image_or_path</span><span class="s3">, </span><span class="s1">Image</span><span class="s3">.</span><span class="s1">Image</span><span class="s3">):</span>
+        <span class="s0">with </span><span class="s1">tempfile</span><span class="s3">.</span><span class="s1">NamedTemporaryFile</span><span class="s3">(</span><span class="s1">suffix</span><span class="s3">=</span><span class="s4">&quot;.png&quot;</span><span class="s3">, </span><span class="s1">delete</span><span class="s3">=</span><span class="s0">False</span><span class="s3">) </span><span class="s0">as </span><span class="s1">tmp</span><span class="s3">:</span>
+            <span class="s1">pil_image_or_path</span><span class="s3">.</span><span class="s1">save</span><span class="s3">(</span><span class="s1">tmp</span><span class="s3">.</span><span class="s1">name</span><span class="s3">)</span>
+            <span class="s1">temp_file </span><span class="s3">= </span><span class="s1">tmp</span><span class="s3">.</span><span class="s1">name</span>
+        <span class="s1">image_to_load </span><span class="s3">= </span><span class="s1">temp_file</span>
+    <span class="s0">else</span><span class="s3">:</span>
+        <span class="s1">image_to_load </span><span class="s3">= </span><span class="s1">pil_image_or_path</span>
+
+    <span class="s0">try</span><span class="s3">:</span>
+        <span class="s1">image </span><span class="s3">= </span><span class="s1">tf</span><span class="s3">.</span><span class="s1">keras</span><span class="s3">.</span><span class="s1">preprocessing</span><span class="s3">.</span><span class="s1">image</span><span class="s3">.</span><span class="s1">load_img</span><span class="s3">(</span><span class="s1">image_to_load</span><span class="s3">, </span><span class="s1">target_size</span><span class="s3">=(</span><span class="s5">320</span><span class="s3">, </span><span class="s5">280</span><span class="s3">))</span>
+        <span class="s1">input_arr </span><span class="s3">= </span><span class="s1">tf</span><span class="s3">.</span><span class="s1">keras</span><span class="s3">.</span><span class="s1">preprocessing</span><span class="s3">.</span><span class="s1">image</span><span class="s3">.</span><span class="s1">img_to_array</span><span class="s3">(</span><span class="s1">image</span><span class="s3">)</span>
+        <span class="s1">st</span><span class="s3">.</span><span class="s1">write</span><span class="s3">(</span><span class="s4">f&quot;Shape after img_to_array (pixels 0-255): </span><span class="s0">{</span><span class="s1">input_arr</span><span class="s3">.</span><span class="s1">shape</span><span class="s0">}</span><span class="s4">, dtype: </span><span class="s0">{</span><span class="s1">input_arr</span><span class="s3">.</span><span class="s1">dtype</span><span class="s0">}</span><span class="s4">&quot;</span><span class="s3">)</span>
+        <span class="s1">st</span><span class="s3">.</span><span class="s1">image</span><span class="s3">(</span><span class="s1">input_arr</span><span class="s3">.</span><span class="s1">astype</span><span class="s3">(</span><span class="s1">np</span><span class="s3">.</span><span class="s1">uint8</span><span class="s3">), </span><span class="s1">caption</span><span class="s3">=</span><span class="s4">&quot;Image after tf.keras.preprocessing (Resized, RGB, 0-255)&quot;</span><span class="s3">, </span><span class="s1">use_container_width</span><span class="s3">=</span><span class="s0">True</span><span class="s3">)</span>
+        <span class="s1">processed </span><span class="s3">= </span><span class="s1">np</span><span class="s3">.</span><span class="s1">expand_dims</span><span class="s3">(</span><span class="s1">input_arr</span><span class="s3">, </span><span class="s1">axis</span><span class="s3">=</span><span class="s5">0</span><span class="s3">)</span>
+
+        <span class="s1">st</span><span class="s3">.</span><span class="s1">write</span><span class="s3">(</span><span class="s4">f&quot;Final processed shape for model (pixels 0-255): </span><span class="s0">{</span><span class="s1">processed</span><span class="s3">.</span><span class="s1">shape</span><span class="s0">}</span><span class="s4">&quot;</span><span class="s3">)</span>
+        <span class="s0">return </span><span class="s1">processed</span>
+
+    <span class="s0">finally</span><span class="s3">:</span>
+        <span class="s0">if </span><span class="s1">temp_file </span><span class="s0">and </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">exists</span><span class="s3">(</span><span class="s1">temp_file</span><span class="s3">):</span>
+            <span class="s1">os</span><span class="s3">.</span><span class="s1">remove</span><span class="s3">(</span><span class="s1">temp_file</span><span class="s3">)</span>
+
+<span class="s2"># --- Prediction Function ---</span>
+<span class="s0">def </span><span class="s1">predict</span><span class="s3">(</span><span class="s1">pil_image_or_path</span><span class="s3">):</span>
+    <span class="s1">processed_image </span><span class="s3">= </span><span class="s1">preprocess_image_for_model</span><span class="s3">(</span><span class="s1">pil_image_or_path</span><span class="s3">)</span>
+    <span class="s1">prediction </span><span class="s3">= </span><span class="s1">model</span><span class="s3">.</span><span class="s1">predict</span><span class="s3">(</span><span class="s1">processed_image</span><span class="s3">)</span>
+
+    <span class="s1">st</span><span class="s3">.</span><span class="s1">write</span><span class="s3">(</span><span class="s4">&quot;Raw prediction probabilities:&quot;</span><span class="s3">, </span><span class="s1">prediction</span><span class="s3">) </span><span class="s2"># Debug output</span>
+
+    <span class="s1">predicted_class_index </span><span class="s3">= </span><span class="s1">np</span><span class="s3">.</span><span class="s1">argmax</span><span class="s3">(</span><span class="s1">prediction</span><span class="s3">)</span>
+    <span class="s1">confidence </span><span class="s3">= </span><span class="s1">float</span><span class="s3">(</span><span class="s1">np</span><span class="s3">.</span><span class="s1">max</span><span class="s3">(</span><span class="s1">prediction</span><span class="s3">))</span>
+    <span class="s0">return </span><span class="s1">class_names</span><span class="s3">[</span><span class="s1">predicted_class_index</span><span class="s3">], </span><span class="s1">confidence</span>
+
+<span class="s2"># --- Streamlit UI ---</span>
+<span class="s1">st</span><span class="s3">.</span><span class="s1">title</span><span class="s3">(</span><span class="s4">&quot;Pinguecula &amp; Pterygium Detection App&quot;</span><span class="s3">)</span>
+<span class="s1">st</span><span class="s3">.</span><span class="s1">subheader</span><span class="s3">(</span><span class="s4">&quot;📷 Upload or capture an image to detect eye condition severity&quot;</span><span class="s3">)</span>
+
+<span class="s1">page </span><span class="s3">= </span><span class="s1">st</span><span class="s3">.</span><span class="s1">sidebar</span><span class="s3">.</span><span class="s1">selectbox</span><span class="s3">(</span><span class="s4">&quot;Navigate&quot;</span><span class="s3">, [</span><span class="s4">&quot;Home&quot;</span><span class="s3">, </span><span class="s4">&quot;Upload / Take Photo&quot;</span><span class="s3">])</span>
+
+<span class="s0">if </span><span class="s1">page </span><span class="s3">== </span><span class="s4">&quot;Home&quot;</span><span class="s3">:</span>
+    <span class="s1">st</span><span class="s3">.</span><span class="s1">info</span><span class="s3">(</span><span class="s4">&quot;Choose 'Upload / Take Photo' from the sidebar to get started.&quot;</span><span class="s3">)</span>
+
+<span class="s0">elif </span><span class="s1">page </span><span class="s3">== </span><span class="s4">&quot;Upload / Take Photo&quot;</span><span class="s3">:</span>
+    <span class="s1">st</span><span class="s3">.</span><span class="s1">write</span><span class="s3">(</span><span class="s4">&quot;Upload an image file or take a photo with your webcam.&quot;</span><span class="s3">)</span>
+
+    <span class="s1">img_to_predict </span><span class="s3">= </span><span class="s0">None</span>
+
+    <span class="s1">uploaded_file </span><span class="s3">= </span><span class="s1">st</span><span class="s3">.</span><span class="s1">file_uploader</span><span class="s3">(</span><span class="s4">&quot;Upload Image&quot;</span><span class="s3">, </span><span class="s1">type</span><span class="s3">=[</span><span class="s4">&quot;jpg&quot;</span><span class="s3">, </span><span class="s4">&quot;jpeg&quot;</span><span class="s3">, </span><span class="s4">&quot;png&quot;</span><span class="s3">])</span>
+    <span class="s0">if </span><span class="s1">uploaded_file </span><span class="s0">is not None</span><span class="s3">:</span>
+        <span class="s1">img_to_predict </span><span class="s3">= </span><span class="s1">Image</span><span class="s3">.</span><span class="s1">open</span><span class="s3">(</span><span class="s1">uploaded_file</span><span class="s3">).</span><span class="s1">convert</span><span class="s3">(</span><span class="s4">&quot;RGB&quot;</span><span class="s3">)  </span><span class="s2"># Ensure it's RGB</span>
+        <span class="s1">st</span><span class="s3">.</span><span class="s1">image</span><span class="s3">(</span><span class="s1">img_to_predict</span><span class="s3">, </span><span class="s1">caption</span><span class="s3">=</span><span class="s4">&quot;Uploaded Image&quot;</span><span class="s3">, </span><span class="s1">use_container_width</span><span class="s3">=</span><span class="s0">True</span><span class="s3">)</span>
+
+    <span class="s2"># Handle Camera Input (only show if no uploaded file)</span>
+    <span class="s0">if </span><span class="s4">&quot;camera_image_data&quot; </span><span class="s0">not in </span><span class="s1">st</span><span class="s3">.</span><span class="s1">session_state</span><span class="s3">:</span>
+        <span class="s1">st</span><span class="s3">.</span><span class="s1">session_state</span><span class="s3">[</span><span class="s4">&quot;camera_image_data&quot;</span><span class="s3">] = </span><span class="s0">None</span>
+
+    <span class="s2"># ✅ แสดงกล้องเฉพาะเมื่อยังไม่มีการอัปโหลด</span>
+    <span class="s0">if </span><span class="s1">uploaded_file </span><span class="s0">is None</span><span class="s3">:</span>
+        <span class="s1">camera_input </span><span class="s3">= </span><span class="s1">st</span><span class="s3">.</span><span class="s1">camera_input</span><span class="s3">(</span><span class="s4">&quot;Take a photo&quot;</span><span class="s3">)</span>
+        <span class="s0">if </span><span class="s1">camera_input </span><span class="s0">is not None</span><span class="s3">:</span>
+            <span class="s1">st</span><span class="s3">.</span><span class="s1">session_state</span><span class="s3">[</span><span class="s4">&quot;camera_image_data&quot;</span><span class="s3">] = </span><span class="s1">Image</span><span class="s3">.</span><span class="s1">open</span><span class="s3">(</span><span class="s1">camera_input</span><span class="s3">).</span><span class="s1">convert</span><span class="s3">(</span><span class="s4">&quot;RGB&quot;</span><span class="s3">)</span>
+            <span class="s1">img_to_predict </span><span class="s3">= </span><span class="s1">st</span><span class="s3">.</span><span class="s1">session_state</span><span class="s3">[</span><span class="s4">&quot;camera_image_data&quot;</span><span class="s3">]</span>
+            <span class="s1">st</span><span class="s3">.</span><span class="s1">image</span><span class="s3">(</span><span class="s1">img_to_predict</span><span class="s3">, </span><span class="s1">caption</span><span class="s3">=</span><span class="s4">&quot;Captured Image&quot;</span><span class="s3">, </span><span class="s1">use_container_width</span><span class="s3">=</span><span class="s0">True</span><span class="s3">)</span>
+        <span class="s0">elif </span><span class="s1">st</span><span class="s3">.</span><span class="s1">session_state</span><span class="s3">[</span><span class="s4">&quot;camera_image_data&quot;</span><span class="s3">] </span><span class="s0">is not None</span><span class="s3">:</span>
+            <span class="s2"># ถ้ายังไม่มีการอัปโหลด และกล้องเคยใช้ → แสดงภาพเดิม</span>
+            <span class="s1">img_to_predict </span><span class="s3">= </span><span class="s1">st</span><span class="s3">.</span><span class="s1">session_state</span><span class="s3">[</span><span class="s4">&quot;camera_image_data&quot;</span><span class="s3">]</span>
+            <span class="s1">st</span><span class="s3">.</span><span class="s1">image</span><span class="s3">(</span><span class="s1">img_to_predict</span><span class="s3">, </span><span class="s1">caption</span><span class="s3">=</span><span class="s4">&quot;Previously Captured Image&quot;</span><span class="s3">, </span><span class="s1">use_container_width</span><span class="s3">=</span><span class="s0">True</span><span class="s3">)</span>
+    <span class="s0">else</span><span class="s3">:</span>
+        <span class="s2"># ✅ ถ้ามีการอัปโหลดแล้ว → ล้างภาพจากกล้อง</span>
+        <span class="s1">st</span><span class="s3">.</span><span class="s1">session_state</span><span class="s3">[</span><span class="s4">&quot;camera_image_data&quot;</span><span class="s3">] = </span><span class="s0">None</span>
+
+    <span class="s2"># Prediction Button</span>
+    <span class="s0">if </span><span class="s1">img_to_predict </span><span class="s0">is not None</span><span class="s3">:</span>
+        <span class="s0">if </span><span class="s1">st</span><span class="s3">.</span><span class="s1">button</span><span class="s3">(</span><span class="s4">&quot;Predict&quot;</span><span class="s3">):</span>
+            <span class="s0">with </span><span class="s1">st</span><span class="s3">.</span><span class="s1">spinner</span><span class="s3">(</span><span class="s4">&quot;Analyzing image...&quot;</span><span class="s3">):</span>
+                <span class="s1">label</span><span class="s3">, </span><span class="s1">confidence </span><span class="s3">= </span><span class="s1">predict</span><span class="s3">(</span><span class="s1">img_to_predict</span><span class="s3">)</span>
+                <span class="s1">st</span><span class="s3">.</span><span class="s1">markdown</span><span class="s3">(</span><span class="s4">&quot;### 🧠 Prediction Result&quot;</span><span class="s3">)</span>
+                <span class="s1">st</span><span class="s3">.</span><span class="s1">success</span><span class="s3">(</span><span class="s4">f&quot;**</span><span class="s0">{</span><span class="s1">label</span><span class="s0">}</span><span class="s4">** (Confidence: </span><span class="s0">{</span><span class="s1">confidence</span><span class="s3">*</span><span class="s5">100</span><span class="s0">:</span><span class="s4">.2f</span><span class="s0">}</span><span class="s4">%)&quot;</span><span class="s3">)</span>
+    <span class="s0">else</span><span class="s3">:</span>
+        <span class="s1">st</span><span class="s3">.</span><span class="s1">info</span><span class="s3">(</span><span class="s4">&quot;Please upload an image or take a photo to start prediction.&quot;</span><span class="s3">)</span>
+
+    <span class="s2"># Clear Inputs Button</span>
+    <span class="s0">if </span><span class="s1">st</span><span class="s3">.</span><span class="s1">button</span><span class="s3">(</span><span class="s4">&quot;Clear Inputs&quot;</span><span class="s3">):</span>
+        <span class="s1">st</span><span class="s3">.</span><span class="s1">session_state</span><span class="s3">[</span><span class="s4">&quot;camera_image_data&quot;</span><span class="s3">] = </span><span class="s0">None</span>
+        <span class="s1">st</span><span class="s3">.</span><span class="s1">rerun</span><span class="s3">()</span></pre>
+</body>
+</html>
