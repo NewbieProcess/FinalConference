@@ -238,44 +238,6 @@ with tab2:
     )
     handle_image_input(camera_input.getvalue() if camera_input else None, "camera", "camera_crop")
 
-with tab3: # New "Report & Feedback" tab
-    st.markdown("### ✍️ Share Your Feedback or Report an Issue")
-    st.markdown("We appreciate your input! Please use the form below to share your thoughts, suggestions, or report any problems you encountered.")
-
-    with st.form("feedback_form"):
-        feedback_type = st.radio(
-            "What type of feedback is this?",
-            ["General Feedback", "Suggestion", "Bug Report", "Other"],
-            horizontal=True
-        )
-        feedback_message = st.text_area(
-            "Your Message:",
-            height=150,
-            placeholder="Type your feedback or describe the issue here...",
-            help="Please provide as much detail as possible."
-        )
-        user_email = st.text_input(
-            "Your Email (Optional):",
-            placeholder="your.email@example.com",
-            help="We might use this to follow up if necessary."
-        )
-
-        submitted = st.form_submit_button("Submit Feedback")
-
-        if submitted:
-            if feedback_message:
-                st.success("✅ Thank you for your feedback! We've received your message.")
-                # In a real application, you would send this data to a backend service,
-                # e.g., a database, an email, or a ticketing system.
-                # Example:
-                # save_feedback_to_database(feedback_type, feedback_message, user_email)
-                st.write(f"**Feedback Type:** {feedback_type}")
-                st.write(f"**Message:** {feedback_message}")
-                st.write(f"**Contact Email:** {user_email if user_email else 'N/A'}")
-                st.info("Your feedback helps us improve!")
-            else:
-                st.warning("Please enter your message before submitting.")
-
 st.divider()
 
 # --- Prediction Button & Results ---
