@@ -3,92 +3,306 @@ import numpy as np
 import cv2
 import tensorflow as tf
 from tensorflow.keras.models import load_model
-import tempfile
+from streamlit_cropper import st_cropper
+from PIL import Image
 
 # --- Constants ---
-MODEL_PATH = "DetectModle.keras"
-class_names = ["Healthy", "Pinguecula", "Pterygium Stage1(Trace-Mild)", "Pterygium Stage2(Moderate-Severe)"]
+FIRST_MODEL_PATH = "EyeImageDetect.keras"
+FIRST_CLASS_NAMES = ["Eye Detected", "No Eye Detected"]
+SEC_MODEL_PATH = "HPP1P2Detect.keras"
+SEC_CLASS_NAMES = ["Healthy", "Pinguecula", "Pterygium Stage 1 (Trace-Mild)", "Pterygium Stage 2 (Moderate-Severe)"]
 
-# --- Model Loading ---
+# Thresholds
+CONFIDENCE_THRESHOLD = 0.50
+MARGIN_THRESHOLD = 0.10
+
+# --- Page Configuration ---
+st.set_page_config(
+    page_title="Eye Condition Detector",
+    page_icon="👁️",
+    layout="centered",
+    initial_sidebar_state="auto"
+)
+
+# --- Initialize session state for image management ---
+if 'img_raw_bytes' not in st.session_state:
+    st.session_state.img_raw_bytes = None
+if 'img_for_prediction' not in st.session_state:
+    st.session_state.img_for_prediction = None
+if 'current_input_method' not in st.session_state:
+    st.session_state.current_input_method = "none"
+
+# --- Load Models (Cached) ---
 @st.cache_resource
-def load_trained_model():
-    try:
-        model = load_model(MODEL_PATH)
-        return model
-    except Exception as e:
-        st.error(f"Error loading model from {MODEL_PATH}: {e}")
-        st.stop()
-        return None
+def load_first_model():
+    with st.spinner("🚀 Loading AI model for eye detection..."):
+        try:
+            model = load_model(FIRST_MODEL_PATH)
+            return model
+        except Exception as e:
+            st.error(f"❌ Failed to load eye detection model: {e}. Please ensure '{FIRST_MODEL_PATH}' is in the correct directory.")
+            st.stop()
 
-model = load_trained_model()
+@st.cache_resource
+def load_sec_model():
+    with st.spinner("🧠 Loading AI model for eye condition analysis..."):
+        try:
+            model = load_model(SEC_MODEL_PATH)
+            return model
+        except Exception as e:
+            st.error(f"❌ Failed to load eye condition model: {e}. Please ensure '{SEC_MODEL_PATH}' is in the correct directory.")
+            st.stop()
 
-# --- Image Preprocessing ---
-def preprocess_image_for_model(image_np):
-    image_resized = cv2.resize(image_np, (280, 320))  # Resize to match model input
+first_model = load_first_model()
+sec_model = load_sec_model()
+
+# --- Preprocessing ---
+def preprocess_image(image_np, target_size=(280, 320)):
+    """Resizes, converts to RGB, and expands dimensions for model input."""
+    image_resized = cv2.resize(image_np, target_size)
     image_rgb = cv2.cvtColor(image_resized, cv2.COLOR_BGR2RGB)
     image_array = np.expand_dims(image_rgb.astype("float32"), axis=0)
-
-    st.image(image_rgb, caption="Preprocessed Image", use_container_width=True)
     return image_array
 
-# --- Prediction ---
-def predict(image_np):
-    processed = preprocess_image_for_model(image_np)
-    prediction = model.predict(processed)
+# --- Prediction Logic ---
+def predict_eye_detection(image_np):
+    processed_image = preprocess_image(image_np)
+    prediction = first_model.predict(processed_image)[0]
     predicted_class_index = np.argmax(prediction)
-    confidence = float(np.max(prediction))
-    return class_names[predicted_class_index], confidence
+    confidence = prediction[predicted_class_index]
+    return FIRST_CLASS_NAMES[predicted_class_index], confidence
+
+def predict_eye_condition(image_np):
+    processed_image = preprocess_image(image_np)
+    prediction = sec_model.predict(processed_image)[0]
+
+    top_2 = np.sort(prediction)[-2:]
+    confidence = top_2[-1]
+    margin = top_2[-1] - top_2[-2]
+
+    predicted_class_index = np.argmax(prediction)
+
+    if confidence < CONFIDENCE_THRESHOLD or margin < MARGIN_THRESHOLD:
+        return "Uncertain", confidence
+    return SEC_CLASS_NAMES[predicted_class_index], confidence
+
+# --- Helper Function for Display ---
+def display_prediction_result(label, confidence, is_eye_detection=False):
+    """Displays prediction results with appropriate styling and advice."""
+    if is_eye_detection:
+        if "No Eye" in label:
+            st.error(f"❌ **{label}** ")
+            st.info("Please ensure your image clearly shows an eye. The AI couldn't detect one. Try re-uploading or cropping again.")
+        else:
+            st.success(f"✅ **{label}** ")
+    else: # Eye condition prediction
+        if label == "Uncertain":
+            st.warning("⚠️ **Uncertain Diagnosis**")
+            st.write(f"Confidence: {confidence * 100:.2f}%")
+            st.info("The AI model's confidence is low, or the results are ambiguous. For a definitive diagnosis, please consult a medical professional.")
+        elif "Healthy" in label:
+            st.balloons()
+            st.success(f"🎉 **{label}!**")
+            st.write(f"Confidence: {confidence * 100:.2f}%")
+            st.info("Great news! Your eye appears healthy based on AI analysis. Remember to still consult a healthcare professional for a complete eye examination.")
+        else: # Pinguecula or Pterygium stages
+            st.warning(f"🚨 **Potential Condition: {label}**")
+            st.write(f"Confidence: {confidence * 100:.2f}%")
+            st.info("This is an AI-based preliminary finding. It suggests a potential eye condition. **Please seek professional medical advice for proper diagnosis and treatment.**")
+
+            # Add specific advice based on the detected condition
+            if label == "Pinguecula":
+                st.markdown(
+                    """
+                    **คำแนะนำเพิ่มเติมสำหรับภาวะต้อลม (Pinguecula):**
+                    หากเกิดการระคายเคือง แนะนำให้ใช้ยาหยอดตาเพื่อบรรเทาอาการ แต่ยาหยอดตาเหล่านี้ไม่ได้ช่วยรักษาให้ต้อลมหายไปโดยตรง แต่จะช่วยลดการอักเสบและการระคายเคือง และช่วยป้องกันไม่ให้ต้อลมลุกลามหรืออักเสบเพิ่มขึ้น
+                    """
+                )
+            elif label == "Pterygium Stage 1 (Trace-Mild)":
+                st.markdown(
+                    """
+                    **คำแนะนำเพิ่มเติมสำหรับภาวะต้อเนื้อ ระยะที่ 1 (เริ่มแรก-ไม่รุนแรง):**
+                    กรณีเป็นระยะแรกเริ่ม ยาหยอดตาที่ใช้จะช่วยบรรเทาอาการตาแดงและระคายเคือง เพื่อลดการอักเสบ และชะลอการลุกลามของต้อเนื้อ อย่างไรก็ตาม ยาหยอดตาเหล่านี้ไม่ได้รักษาให้ต้อเนื้อหายไป จำเป็นต้องปรึกษาจักษุแพทย์เพื่อรับการตรวจและประเมินเพิ่มเติม
+                    """
+                )
+                st.warning("⚠️ **โปรดปรึกษาจักษุแพทย์:** สำหรับการวินิจฉัยและแผนการรักษาที่เหมาะสม.")
+            elif label == "Pterygium Stage 2 (Moderate-Severe)":
+                st.markdown(
+                    """
+                    **คำแนะนำเพิ่มเติมสำหรับภาวะต้อเนื้อ ระยะที่ 2 (ปานกลาง-รุนแรง):**
+                    ต้อเนื้อในระยะนี้อาจมีความรุนแรงมากขึ้น และอาจส่งผลต่อการมองเห็นได้ จำเป็นอย่างยิ่งที่จะต้องได้รับการประเมินจากจักษุแพทย์โดยเร็วที่สุด เพื่อพิจารณาแนวทางการรักษาที่เหมาะสม ซึ่งอาจรวมถึงการผ่าตัด
+                    """
+                )
+                st.error("🚨 **โปรดไปพบจักษุแพทย์โดยด่วน:** เพื่อการตรวจวินิจฉัยและวางแผนการรักษาที่จำเป็น.")
+
 
 # --- Streamlit UI ---
-st.title("Pinguecula & Pterygium Detection App")
-st.subheader("📷 Upload or capture an image to detect eye condition severity")
 
-page = st.sidebar.selectbox("Navigate", ["Home", "Upload / Take Photo"])
+# Header Section
+st.markdown(
+    """
+    <div style="text-align: center; margin-bottom: 20px;">
+        <h1>👁️ Eye scan AI</h1>
+         <p>Your intelligent assistant for preliminary eye health checks (Healthy , Pinguecula , Pterygium).</p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
-if page == "Home":
-    st.info("Choose 'Upload / Take Photo' from the sidebar to get started.")
+# How it works / Welcome message
+st.markdown("---")
+st.markdown(
+    """
+    **Welcome!** Discover the power of AI to get a quick, preliminary assessment for common eye conditions such as **Pinguecula** and **Pterygium** (early and advanced stages), or simply to check for **healthy** signs.
 
-elif page == "Upload / Take Photo":
-    st.write("Upload an image file or take a photo with your webcam.")
-    img_to_predict = None
+    **Here's how to use EyeScan AI:**
+    1.  **📸 Provide an Image:** Upload a clear photo of your eye from your device or capture one using your camera.
+    2.  **✂️ Crop Precisely:** Adjust the cropping box to perfectly frame and focus on your eye. This helps our AI analyze accurately.
+    3.  **🔬 Get Analysis:** Click the 'Analyze' button to receive an AI-powered prediction on your eye's condition.
 
-    uploaded_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
-    if uploaded_file is not None:
-        # Read image from upload as NumPy array
-        bytes_data = uploaded_file.read()
-        npimg = np.frombuffer(bytes_data, np.uint8)
-        img_np = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
-        st.image(cv2.cvtColor(img_np, cv2.COLOR_BGR2RGB), caption="Uploaded Image", use_container_width=True)
-        img_to_predict = img_np
+    **Important Disclaimer:** EyeScan AI is an **informational tool only** and is **not a substitute for professional medical advice or diagnosis**. Always consult a qualified ophthalmologist or healthcare provider for any health concerns, proper diagnosis, and treatment.
+    """
+)
+st.markdown("---")
 
-    if "camera_image_data" not in st.session_state:
-        st.session_state["camera_image_data"] = None
+st.subheader("📸 Start Your Eye Scan")
+st.markdown("Choose how you'd like to interact with the app:")
 
-    if uploaded_file is None:
-        camera_input = st.camera_input("Take a photo")
-        if camera_input is not None:
-            bytes_data = camera_input.read()
-            npimg = np.frombuffer(bytes_data, np.uint8)
-            img_np = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
-            st.session_state["camera_image_data"] = img_np
-            st.image(cv2.cvtColor(img_np, cv2.COLOR_BGR2RGB), caption="Captured Image", use_container_width=True)
-            img_to_predict = img_np
-        elif st.session_state["camera_image_data"] is not None:
-            img_np = st.session_state["camera_image_data"]
-            st.image(cv2.cvtColor(img_np, cv2.COLOR_BGR2RGB), caption="Previously Captured Image", use_container_width=True)
-            img_to_predict = img_np
-    else:
-        st.session_state["camera_image_data"] = None
+st.info("💡 **Tip:** For the most accurate results, ensure your eye image is well-lit and clearly visible!")
+tab1, tab2, tab3 = st.tabs(["🖼️ Upload Image", "📸 Use Camera", "✍️ Report & Feedback"])
 
-    if img_to_predict is not None:
-        if st.button("Predict"):
-            with st.spinner("Analyzing image..."):
-                label, confidence = predict(img_to_predict)
-                st.markdown("### 🧠 Prediction Result")
-                st.success(f"**{label}** (Confidence: {confidence*100:.2f}%)")
-    else:
-        st.info("Please upload an image or take a photo to start prediction.")
+# --- Function to handle image processing and cropping ---
+def handle_image_input(uploaded_bytes, method_name, cropper_key):
+    # Case 1: A new raw image is provided OR the input method has switched
+    if (uploaded_bytes is not None and st.session_state.img_raw_bytes != uploaded_bytes) or \
+       (st.session_state.current_input_method != method_name and uploaded_bytes is not None):
+        st.session_state.img_raw_bytes = uploaded_bytes
+        st.session_state.img_for_prediction = None  # Clear previously cropped image
+        st.session_state.current_input_method = method_name
+        st.rerun() # Trigger a rerun to clear old display elements and re-render with new raw image for cropper
 
-    if st.button("Clear Inputs"):
-        st.session_state["camera_image_data"] = None
-        st.rerun()
+    # Case 2: The 'x' button was clicked, or camera input was cleared (uploaded_bytes is None)
+    # and the current method matches. This means the user explicitly cleared the input.
+    elif uploaded_bytes is None and st.session_state.current_input_method == method_name:
+        if st.session_state.img_raw_bytes is not None: # Only clear if there was an image to begin with
+            st.session_state.img_raw_bytes = None
+            st.session_state.img_for_prediction = None
+            st.session_state.current_input_method = "none" # Reset active method
+            st.rerun() # Trigger a rerun to clear the display
+
+    # If the current input method is active and we have raw image bytes
+    if st.session_state.current_input_method == method_name and st.session_state.img_raw_bytes:
+        # Decode bytes to numpy array using OpenCV
+        img_np_decoded = cv2.imdecode(np.frombuffer(st.session_state.img_raw_bytes, np.uint8), cv2.IMREAD_COLOR)
+        # Convert OpenCV's BGR to PIL's RGB
+        img_pil = Image.fromarray(cv2.cvtColor(img_np_decoded, cv2.COLOR_BGR2RGB))
+
+        st.markdown("### ✂️ Step 2: Crop Your Image")
+        st.info("**Drag the box** to perfectly frame your eye. A precise crop leads to more accurate analysis.")
+        cropped_img = st_cropper(
+            img_pil,
+            aspect_ratio=(280, 320),
+            box_color='#FF4B4B', # A distinct color for the crop box
+            key=cropper_key
+        )
+        if cropped_img:
+            # Update the image for prediction ONLY if the cropper provides a valid output
+            st.session_state.img_for_prediction = cv2.cvtColor(np.array(cropped_img), cv2.COLOR_BGR2RGB) # Ensure RGB for further processing
+            st.markdown("---")
+            st.image(cropped_img, caption="✅ Cropped Image Ready for Analysis", use_container_width=True)
+            st.markdown("---")
+        else:
+            # If cropped_img is None (e.g., first render of cropper after new upload), ensure img_for_prediction is cleared
+            st.session_state.img_for_prediction = None
+
+
+# --- Image Input & Cropping using Tabs ---
+with tab1:
+    st.markdown("### 🖼️ Upload an Image from Your Device")
+    st.markdown("Upload a photo of your eye from your computer or phone. Supported formats: JPG, JPEG, PNG.")
+    uploaded_file = st.file_uploader(
+        "Drag & Drop or Click to Upload Image",
+        type=["jpg", "jpeg", "png"],
+        help="Upload a clear image of an eye for analysis.",
+        key="uploader_widget"
+    )
+    handle_image_input(uploaded_file.getvalue() if uploaded_file else None, "upload", "uploaded_crop")
+
+with tab2:
+    st.markdown("### 📸 Use Your Device's Camera")
+    st.markdown("Capture a real-time photo of your eye. Ensure good lighting for best results.")
+    camera_input = st.camera_input(
+        "Take a Photo of Your Eye",
+        help="Take a photo of your eye using your device's camera.",
+        key="camera_widget"
+    )
+    handle_image_input(camera_input.getvalue() if camera_input else None, "camera", "camera_crop")
+
+with tab3: # New "Report & Feedback" tab
+    st.markdown("### ✍️ Share Your Feedback or Report an Issue")
+    st.markdown("We appreciate your input! Please use the form below to share your thoughts, suggestions, or report any problems you encountered.")
+
+    with st.form("feedback_form"):
+        feedback_type = st.radio(
+            "What type of feedback is this?",
+            ["General Feedback", "Suggestion", "Bug Report", "Other"],
+            horizontal=True
+        )
+        feedback_message = st.text_area(
+            "Your Message:",
+            height=150,
+            placeholder="Type your feedback or describe the issue here...",
+            help="Please provide as much detail as possible."
+        )
+        user_email = st.text_input(
+            "Your Email (Optional):",
+            placeholder="your.email@example.com",
+            help="We might use this to follow up if necessary."
+        )
+
+        submitted = st.form_submit_button("Submit Feedback")
+
+        if submitted:
+            if feedback_message:
+                st.success("✅ Thank you for your feedback! We've received your message.")
+                # In a real application, you would send this data to a backend service,
+                # e.g., a database, an email, or a ticketing system.
+                # Example:
+                # save_feedback_to_database(feedback_type, feedback_message, user_email)
+                st.write(f"**Feedback Type:** {feedback_type}")
+                st.write(f"**Message:** {feedback_message}")
+                st.write(f"**Contact Email:** {user_email if user_email else 'N/A'}")
+                st.info("Your feedback helps us improve!")
+            else:
+                st.warning("Please enter your message before submitting.")
+
+st.divider()
+
+# --- Prediction Button & Results ---
+if st.session_state.img_for_prediction is not None:
+    st.markdown("### 🔬 Step 3: Get Your Analysis")
+    st.info("Once satisfied with your cropped image, click 'Analyze' to see the AI's findings.")
+    if st.button("🚀 Analyze Eye Image", type="primary", use_container_width=True):
+        st.subheader("📊 Analysis Results")
+        with st.spinner("Analyzing image... Please wait. This may take a few moments."):
+            # Create columns for side-by-side display on larger screens, stacks on mobile
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.markdown("#### Eye Detection Result")
+                eye_label, eye_confidence = predict_eye_detection(st.session_state.img_for_prediction)
+                display_prediction_result(eye_label, eye_confidence, is_eye_detection=True)
+
+            if "No Eye Detected" in eye_label and eye_confidence > CONFIDENCE_THRESHOLD:
+                # If no eye is detected, no need to proceed to the second model
+                col2.markdown("#### Eye Condition Result") # Placeholder for clarity
+                col2.warning("🚫 Cannot analyze eye condition without an eye detected.")
+            else:
+                with col2:
+                    st.markdown("#### Eye Condition Analysis")
+                    condition_label, condition_confidence = predict_eye_condition(st.session_state.img_for_prediction)
+                    display_prediction_result(condition_label, condition_confidence)
+else:
+    st.info("Upload or capture an image in **Step 1** above, then crop it in **Step 2**. The analysis button will appear here once ready!")
+
+st.divider()
