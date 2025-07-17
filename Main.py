@@ -217,7 +217,6 @@ def handle_image_input(uploaded_bytes, method_name, cropper_key):
             st.markdown("---")
         else:
             st.session_state.img_for_prediction = None
-
 # --- Image Input & Cropping using Tabs ---
 with tab1:
     st.markdown("### 🖼️ Upload an Image from Your Device")
