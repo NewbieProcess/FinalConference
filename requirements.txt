@@ -1,7 +1,5 @@
-opencv-python-headless==4.5.5.64
-tensorflow==2.11.0
-protobuf==3.20.*
-streamlit==1.24.1
-Pillow
-numpy
-matplotlib
+tensorflow==1.15.0
+numpy==1.19.5
+opencv-python==4.2.0.34
+streamlit==0.74.1
+Pillow==7.2.0
