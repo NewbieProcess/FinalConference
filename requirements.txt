@@ -2,6 +2,6 @@ streamlit==1.26.0
 tensorflow==2.13.0
 protobuf==3.20.3
 numpy==1.23.5
-opencv-python==4.6.0.66
+opencv-python==4.5.5.64
 Pillow==9.5.0
 streamlit-cropper==0.2.0
