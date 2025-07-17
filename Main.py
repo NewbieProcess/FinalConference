@@ -169,54 +169,53 @@ st.subheader("📸 Start Your Eye Scan")
 st.markdown("Choose how you'd like to interact with the app:")
 
 st.info("💡 **Tip:** For the most accurate results, ensure your eye image is well-lit and clearly visible!")
-tab1, tab2, tab3 = st.tabs(["🖼️ Upload Image", "📸 Use Camera", "✍️ Report & Feedback"])
+tab1, tab2, tab3 = st.tabs(["🖼️ Upload Image", "📸 Use Camera"])
 
 # --- Function to handle image processing and cropping ---
 def handle_image_input(uploaded_bytes, method_name, cropper_key):
-    # กรณีภาพใหม่ถูกส่งเข้ามาหรือเปลี่ยน input method
+    # Case 1: A new raw image is provided OR the input method has switched
     if (uploaded_bytes is not None and st.session_state.img_raw_bytes != uploaded_bytes) or \
        (st.session_state.current_input_method != method_name and uploaded_bytes is not None):
         st.session_state.img_raw_bytes = uploaded_bytes
-        st.session_state.img_for_prediction = None  # ล้างภาพครอปเก่า
+        st.session_state.img_for_prediction = None  # Clear previously cropped image
         st.session_state.current_input_method = method_name
-        st.experimental_rerun()  # เรียก rerun เพื่อโหลดภาพใหม่
+        st.rerun() # Trigger a rerun to clear old display elements and re-render with new raw image for cropper
 
-    # กรณีล้าง input
+    # Case 2: The 'x' button was clicked, or camera input was cleared (uploaded_bytes is None)
+    # and the current method matches. This means the user explicitly cleared the input.
     elif uploaded_bytes is None and st.session_state.current_input_method == method_name:
-        if st.session_state.img_raw_bytes is not None:
+        if st.session_state.img_raw_bytes is not None: # Only clear if there was an image to begin with
             st.session_state.img_raw_bytes = None
             st.session_state.img_for_prediction = None
-            st.session_state.current_input_method = "none"
-            st.experimental_rerun()
+            st.session_state.current_input_method = "none" # Reset active method
+            st.rerun() # Trigger a rerun to clear the display
 
-    # หาก method ปัจจุบันกำลัง active และมีภาพ raw อยู่
+    # If the current input method is active and we have raw image bytes
     if st.session_state.current_input_method == method_name and st.session_state.img_raw_bytes:
-        # แปลง bytes เป็น numpy array (BGR)
+        # Decode bytes to numpy array using OpenCV
         img_np_decoded = cv2.imdecode(np.frombuffer(st.session_state.img_raw_bytes, np.uint8), cv2.IMREAD_COLOR)
-        # แปลง BGR -> RGB สำหรับ PIL
+        # Convert OpenCV's BGR to PIL's RGB
         img_pil = Image.fromarray(cv2.cvtColor(img_np_decoded, cv2.COLOR_BGR2RGB))
 
         st.markdown("### ✂️ Step 2: Crop Your Image")
         st.info("**Drag the box** to perfectly frame your eye. A precise crop leads to more accurate analysis.")
-
         cropped_img = st_cropper(
             img_pil,
             aspect_ratio=(280, 320),
-            box_color='#FF4B4B',
+            box_color='#FF4B4B', # A distinct color for the crop box
             key=cropper_key
         )
-
-        if cropped_img is not None:
-            # แปลง cropped image จาก PIL (RGB) -> numpy BGR สำหรับ model
-            img_array = np.array(cropped_img)
-            img_bgr = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
-            st.session_state.img_for_prediction = img_bgr
-
+        if cropped_img:
+            # Update the image for prediction ONLY if the cropper provides a valid output
+            st.session_state.img_for_prediction = cv2.cvtColor(np.array(cropped_img), cv2.COLOR_BGR2RGB) # Ensure RGB for further processing
             st.markdown("---")
             st.image(cropped_img, caption="✅ Cropped Image Ready for Analysis", use_container_width=True)
             st.markdown("---")
         else:
+            # If cropped_img is None (e.g., first render of cropper after new upload), ensure img_for_prediction is cleared
             st.session_state.img_for_prediction = None
+
+
 # --- Image Input & Cropping using Tabs ---
 with tab1:
     st.markdown("### 🖼️ Upload an Image from Your Device")
@@ -269,3 +268,4 @@ else:
     st.info("Upload or capture an image in **Step 1** above, then crop it in **Step 2**. The analysis button will appear here once ready!")
 
 st.divider()
+
