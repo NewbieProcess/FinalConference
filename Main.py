@@ -169,7 +169,7 @@ st.subheader("📸 Start Your Eye Scan")
 st.markdown("Choose how you'd like to interact with the app:")
 
 st.info("💡 **Tip:** For the most accurate results, ensure your eye image is well-lit and clearly visible!")
-tab1, tab2, tab3 = st.tabs(["🖼️ Upload Image", "📸 Use Camera"])
+tab1, tab2= st.tabs(["🖼️ Upload Image", "📸 Use Camera"])
 
 # --- Function to handle image processing and cropping ---
 def handle_image_input(uploaded_bytes, method_name, cropper_key):
