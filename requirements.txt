@@ -4,5 +4,5 @@ opencv-python==4.12.0.88
 tensorflow==2.18.0
 protobuf==3.20.3
 Pillow==11.3.0
-streamlit-croppe
+streamlit-cropper
 libgl1
