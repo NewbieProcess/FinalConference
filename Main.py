@@ -173,7 +173,6 @@ tab1, tab2= st.tabs(["🖼️ Upload Image", "📸 Use Camera"])
 
 # --- Function to handle image processing and cropping ---
 def handle_image_input(uploaded_bytes, method_name, cropper_key):
-    # Case 1: New image provided or input method switched
     if (uploaded_bytes is not None and st.session_state.img_raw_bytes != uploaded_bytes) or \
        (st.session_state.current_input_method != method_name and uploaded_bytes is not None):
         st.session_state.img_raw_bytes = uploaded_bytes
@@ -181,7 +180,6 @@ def handle_image_input(uploaded_bytes, method_name, cropper_key):
         st.session_state.current_input_method = method_name
         st.rerun()
 
-    # Case 2: Image cleared by user
     elif uploaded_bytes is None and st.session_state.current_input_method == method_name:
         if st.session_state.img_raw_bytes is not None:
             st.session_state.img_raw_bytes = None
@@ -189,7 +187,6 @@ def handle_image_input(uploaded_bytes, method_name, cropper_key):
             st.session_state.current_input_method = "none"
             st.rerun()
 
-    # Main display logic
     if st.session_state.current_input_method == method_name and st.session_state.img_raw_bytes:
         img_np_decoded = cv2.imdecode(np.frombuffer(st.session_state.img_raw_bytes, np.uint8), cv2.IMREAD_COLOR)
         img_pil = Image.fromarray(cv2.cvtColor(img_np_decoded, cv2.COLOR_BGR2RGB))
@@ -207,29 +204,19 @@ def handle_image_input(uploaded_bytes, method_name, cropper_key):
         if cropped_img is not None:
             if isinstance(cropped_img, Image.Image):
                 cropped_img_rgb = cropped_img
-                st.image(cropped_img_rgb, caption="✅ Cropped Image Ready for Analysis", use_container_width=True)
-                st.session_state.img_for_prediction = cropped_img_rgb
             elif isinstance(cropped_img, np.ndarray):
                 cropped_img_rgb = Image.fromarray(cv2.cvtColor(cropped_img, cv2.COLOR_BGR2RGB))
-                st.image(cropped_img_rgb, caption="✅ Cropped Image Ready for Analysis", use_container_width=True)
-                st.session_state.img_for_prediction = cropped_img_rgb
             else:
                 st.error("❌ Unsupported cropped image type.")
+                return
+
+            st.session_state.img_for_prediction = cv2.cvtColor(np.array(cropped_img_rgb), cv2.COLOR_RGB2BGR)
+            st.markdown("---")
+            st.image(cropped_img_rgb, caption="✅ Cropped Image Ready for Analysis", use_container_width=True)
+            st.markdown("---")
+            st.stop()
         else:
-            st.warning("⚠️ Please crop the image.")
-
-        st.stop()
-
-
-    # อัปเดตภาพที่ใช้สำหรับการพยากรณ์
-    st.session_state.img_for_prediction = cv2.cvtColor(np.array(cropped_img_rgb), cv2.COLOR_RGB2BGR)
-
-    st.markdown("---")
-    st.image(cropped_img_rgb, caption="✅ Cropped Image Ready for Analysis", use_container_width=True)
-    st.markdown("---")
-else:
-    st.session_state.img_for_prediction = None
-
+            st.session_state.img_for_prediction = None
 
 # --- Image Input & Cropping using Tabs ---
 with tab1:
