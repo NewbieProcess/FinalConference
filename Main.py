@@ -9,7 +9,7 @@ from PIL import Image
 # --- Constants ---
 FIRST_MODEL_PATH = "EyeImageDetect.keras"
 FIRST_CLASS_NAMES = ["Eye Detected", "No Eye Detected"]
-SEC_MODEL_PATH = "HPP1P2Detect.keras"
+SEC_MODEL_PATH = "DiseaseDetect.keras"
 SEC_CLASS_NAMES = ["Healthy", "Pinguecula", "Pterygium Stage 1 (Trace-Mild)", "Pterygium Stage 2 (Moderate-Severe)"]
 
 # Thresholds
