@@ -1,7 +1,7 @@
-streamlit==1.24.0
+streamlit==1.22.0
 tensorflow==2.10.0
 numpy==1.26.4
 opencv-python==4.11.0.86
 Pillow==9.5.0
 streamlit-cropper==0.2.0
-protobuf==3.20.0 
+protobuf==3.19.6
