@@ -173,48 +173,50 @@ tab1, tab2, tab3 = st.tabs(["🖼️ Upload Image", "📸 Use Camera", "✍️ R
 
 # --- Function to handle image processing and cropping ---
 def handle_image_input(uploaded_bytes, method_name, cropper_key):
-    # Case 1: A new raw image is provided OR the input method has switched
+    # กรณีภาพใหม่ถูกส่งเข้ามาหรือเปลี่ยน input method
     if (uploaded_bytes is not None and st.session_state.img_raw_bytes != uploaded_bytes) or \
        (st.session_state.current_input_method != method_name and uploaded_bytes is not None):
         st.session_state.img_raw_bytes = uploaded_bytes
-        st.session_state.img_for_prediction = None  # Clear previously cropped image
+        st.session_state.img_for_prediction = None  # ล้างภาพครอปเก่า
         st.session_state.current_input_method = method_name
-        st.rerun() # Trigger a rerun to clear old display elements and re-render with new raw image for cropper
+        st.experimental_rerun()  # เรียก rerun เพื่อโหลดภาพใหม่
 
-    # Case 2: The 'x' button was clicked, or camera input was cleared (uploaded_bytes is None)
-    # and the current method matches. This means the user explicitly cleared the input.
+    # กรณีล้าง input
     elif uploaded_bytes is None and st.session_state.current_input_method == method_name:
-        if st.session_state.img_raw_bytes is not None: # Only clear if there was an image to begin with
+        if st.session_state.img_raw_bytes is not None:
             st.session_state.img_raw_bytes = None
             st.session_state.img_for_prediction = None
-            st.session_state.current_input_method = "none" # Reset active method
-            st.rerun() # Trigger a rerun to clear the display
+            st.session_state.current_input_method = "none"
+            st.experimental_rerun()
 
-    # If the current input method is active and we have raw image bytes
+    # หาก method ปัจจุบันกำลัง active และมีภาพ raw อยู่
     if st.session_state.current_input_method == method_name and st.session_state.img_raw_bytes:
-        # Decode bytes to numpy array using OpenCV
+        # แปลง bytes เป็น numpy array (BGR)
         img_np_decoded = cv2.imdecode(np.frombuffer(st.session_state.img_raw_bytes, np.uint8), cv2.IMREAD_COLOR)
-        # Convert OpenCV's BGR to PIL's RGB
+        # แปลง BGR -> RGB สำหรับ PIL
         img_pil = Image.fromarray(cv2.cvtColor(img_np_decoded, cv2.COLOR_BGR2RGB))
 
         st.markdown("### ✂️ Step 2: Crop Your Image")
         st.info("**Drag the box** to perfectly frame your eye. A precise crop leads to more accurate analysis.")
+
         cropped_img = st_cropper(
             img_pil,
             aspect_ratio=(280, 320),
-            box_color='#FF4B4B', # A distinct color for the crop box
+            box_color='#FF4B4B',
             key=cropper_key
         )
-        if cropped_img:
-            # Update the image for prediction ONLY if the cropper provides a valid output
-            st.session_state.img_for_prediction = cv2.cvtColor(np.array(cropped_img), cv2.COLOR_BGR2RGB) # Ensure RGB for further processing
+
+        if cropped_img is not None:
+            # แปลง cropped image จาก PIL (RGB) -> numpy BGR สำหรับ model
+            img_array = np.array(cropped_img)
+            img_bgr = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
+            st.session_state.img_for_prediction = img_bgr
+
             st.markdown("---")
             st.image(cropped_img, caption="✅ Cropped Image Ready for Analysis", use_container_width=True)
             st.markdown("---")
         else:
-            # If cropped_img is None (e.g., first render of cropper after new upload), ensure img_for_prediction is cleared
             st.session_state.img_for_prediction = None
-
 
 # --- Image Input & Cropping using Tabs ---
 with tab1:
