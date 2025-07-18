@@ -9,7 +9,7 @@ from PIL import Image
 # --- Constants ---
 FIRST_MODEL_PATH = "EyeImageDetect.keras"
 FIRST_CLASS_NAMES = ["Eye Detected", "No Eye Detected"]
-SEC_MODEL_PATH = "DiseaseDetect.keras"
+SEC_MODEL_PATH = "HPP1P2Detect.keras"
 SEC_CLASS_NAMES = ["Healthy", "Pinguecula", "Pterygium Stage 1 (Trace-Mild)", "Pterygium Stage 2 (Moderate-Severe)"]
 
 # Thresholds
@@ -24,9 +24,9 @@ TEXTS = {
         "app_subheader": "Your intelligent assistant for preliminary eye health checks (Healthy, Pinguecula, Pterygium).",
         "welcome_title": "Welcome!",
         "welcome_message": "Let AI help you quickly screen for common eye conditions like Pinguecula and Pterygium (both early and advanced stages), or just check if your eyes appear healthy.",
-        "how_to_use_title": "How to use OcuScanAI",
+        "how_to_use_title": "How to use",
         "step1_title": "📸 Input an Image:",
-        "step1_desc": "Take or upload a clear photo of your eye (just make sure we can see your full eye like this 👉🏻👁️) so we can help check it better!",
+        "step1_desc": "Take or upload a clear photo of your eye (just make sure we can see your full eye like 👁️) so we can help check it better!",
         "step2_title": "✂️ Crop your image:",
         "step2_desc": "Drag the box to perfectly frame your eye. A precise crop helps our AI analyze it more accurately.",
         "step3_title": "🔬 Get the result:",
@@ -94,21 +94,21 @@ TEXTS = {
     "app_subheader": "ผู้ช่วยตรวจสุขภาพตาด้วยตัวเอง (เช็คตาปกติ ต้อลม ต้อเนื้อ)",
     "welcome_title": "ยินดีต้อนรับครับ!",
     "welcome_message": "ให้ AI ช่วยตรวจเบื้องต้นว่าตาของคุณเป็นต้อลมหรือต้อเนื้อ (ตั้งแต่ระยะเริ่มต้นจนถึงระยะรุนแรง)หรือแค่เช็คว่าตาดูปกติดีอยู่ไหมแบบรวดเร็วและง่ายครับ",
-    "how_to_use_title": "วิธีใช้ OcuScanAI",
+    "how_to_use_title": "วิธีการใช้งาน",
     "step1_title": "📸 ขั้นตอนที่ 1: ใส่รูปภาพ",
-    "step1_desc": "อัปโหลดรูปถ่ายดวงตาที่ชัดหรือจะถ่ายด้วยกล้อง (แต่ต้องเห็นดวงตาทั้งดวงแบบชัดๆแบบนี้ 👉🏻👁️) เพื่อให้ AI วิเคราะห์ได้แม่นยำขึ้น",
+    "step1_desc": "อัปโหลดรูปถ่ายดวงตาที่ชัดหรือจะถ่ายด้วยกล้อง (แต่ต้องเห็นดวงตาทั้งดวงแบบชัดๆนะ 👁️) เพื่อให้ AI วิเคราะห์ได้แม่นยำขึ้น",
     "step2_title": "✂️ ขั้นตอนที่ 2: ครอบตัดรูป",
     "step2_desc": "ลากกรอบครอบตัดให้พอดีกับดวงตา",
     "step3_title": "🔬 ขั้นตอนที่ 3: ดูผลวิเคราะห์",
     "step3_desc": "กดปุ่ม 'วิเคราะห์' เพื่อดูผลการวินิจฉัยเบื้องต้นจาก AI ครับ",
     "disclaimer_title": "ข้อควรทราบ:",
-    "disclaimer_text": "OcuScanAI เป็นแค่เครื่องมือช่วยดูข้อมูลเบื้องต้นเท่านั้น ไม่ใช่แทนคำแนะนำหรือการวินิจฉัยจากแพทย์จริงครับ หากมีอาการหรือข้อสงสัย ควรไปพบจักษุแพทย์เพื่อรับคำแนะนำที่ถูกต้องครับ",
-    "start_scan_subheader": "📸 เริ่มสแกนดวงตา",
-    "choose_interaction": "เลือกวิธีใช้แอป:",
-    "tip_info": "💡 **Tips:** ใช้รูปถ่ายที่มีแสงสว่างเพียงพอและเห็นดวงตาชัด ๆ เพื่อผลลัพธ์ที่แม่นยำที่สุด",
+    "disclaimer_text": "OcuScanAI เป็นแค่เครื่องมือช่วยดูข้อมูลเบื้องต้นเท่านั้น ไม่ใช่คำแนะนำหรือการวินิจฉัยจากแพทย์ หากมีอาการหรือข้อสงสัย ควรไปพบจักษุแพทย์เพื่อรับคำแนะนำที่ถูกต้องครับ",
+    "start_scan_subheader": "📸 เริ่มสแกนดวงตาของคุณได้เลยครับ",
+    "choose_interaction": "เลือกวิธีใช้แอปได้เลยครับ:",
+    "tip_info": "💡 **เคล็ดลับ:** ใช้รูปถ่ายที่มีแสงสว่างเพียงพอ และเห็นดวงตาชัด ๆ เพื่อผลลัพธ์ที่แม่นยำที่สุดครับ!",
     "tab_upload_image": "🖼️ อัปโหลดรูป",
     "tab_use_camera": "📸 ใช้กล้อง",
-    "upload_section_title": "🖼️ อัปโหลดรูปจากเครื่อง",
+    "upload_section_title": "🖼️ อัปโหลดรูปจากเครื่องของคุณครับ",
     "upload_section_desc": "เลือกอัปโหลดรูปดวงตาจากคอมพิวเตอร์หรือมือถือรองรับเฉพาะไฟล์ **JPG, JPEG, PNG**",
     "uploader_label": "ลากรูปมาวางหรือคลิกเพื่อเลือกไฟล์",
     "uploader_help": "อัปโหลดรูปถ่ายดวงตาที่ชัดเจนเพื่อให้ AI วิเคราะห์ครับ",
@@ -116,7 +116,7 @@ TEXTS = {
     "camera_section_desc": "ถ่ายรูปดวงตาควรตรวจสอบให้มีแสงสว่างพอเหมาะเพื่อภาพที่ชัดเจนครับ",
     "camera_label": "ถ่ายรูปดวงตาของคุณครับ",
     "camera_help": "ถ่ายรูปดวงตาด้วยกล้องอุปกรณ์ของคุณครับ",
-    "crop_step_title": "✂️ ขั้นตอนที่ 2: ครอบรูปดวงตา",
+    "crop_step_title": "✂️ ขั้นตอนที่ 2: ครอบตัดรูปของคุณครับ",
     "crop_step_info": "**ลากกรอบ**ครอบให้พอดีกับดวงตา",
     "cropped_image_caption": "✅ รูปที่ครอบตัดพร้อมสำหรับวิเคราะห์ครับ",
     "analyze_step_title": "🔬 ขั้นตอนที่ 3: ผลวิเคราะห์",
@@ -302,15 +302,21 @@ st.markdown("---")
 st.markdown(
     f"""
     **{get_text("welcome_title")}** {get_text("welcome_message")}
-
-    **{get_text("how_to_use_title")}**
-    1.  **{get_text("step1_title")}** {get_text("step1_desc")}
-    2.  **{get_text("step2_title")}** {get_text("step2_desc")}
-    3.  **{get_text("step3_title")}** {get_text("step3_desc")}
-
-    **{get_text("disclaimer_title")}** {get_text("disclaimer_text")}
     """
 )
+
+# Collapsible "How to use" section
+with st.expander(f"**{get_text('how_to_use_title')}**"):
+    st.markdown(
+        f"""
+        1.  **{get_text("step1_title")}** {get_text("step1_desc")}
+        2.  **{get_text("step2_title")}** {get_text("step2_desc")}
+        3.  **{get_text("step3_title")}** {get_text("step3_desc")}
+        """
+    )
+
+st.markdown("---")
+st.markdown(f"**{get_text('disclaimer_title')}** {get_text('disclaimer_text')}")
 st.markdown("---")
 
 st.subheader(get_text("start_scan_subheader"))
@@ -414,4 +420,5 @@ if st.session_state.img_for_prediction is not None:
                     display_prediction_result(condition_label, condition_confidence)
 else:
     st.info(get_text("initial_message"))
+
 st.divider()
