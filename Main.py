@@ -13,7 +13,7 @@ SEC_MODEL_PATH = "DiseaseDetect.keras"
 SEC_CLASS_NAMES = ["Healthy", "Pinguecula", "Pterygium Stage 1 (Trace-Mild)", "Pterygium Stage 2 (Moderate-Severe)"]
 
 # Thresholds
-CONFIDENCE_THRESHOLD = 0.50
+CONFIDENCE_THRESHOLD = 0.60
 MARGIN_THRESHOLD = 0.10
 
 # --- Translation Data ---
