@@ -5,12 +5,13 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 from streamlit_cropper import st_cropper
 from PIL import Image
-import os
+
 # --- Constants ---
 FIRST_MODEL_PATH = "EyesDetect.keras"
 FIRST_CLASS_NAMES = ["Eye Detected", "No Eye Detected"]
 SEC_MODEL_PATH = "44A.FinalJingJing_320x280.keras"
-SEC_CLASS_NAMES = ["Healthy", "Pinguecula", "Pterygium Stage 1 (Trace-Mild)", "Pterygium Stage 2 (Moderate-Severe)"] # Red Eye removed
+# Updated SEC_CLASS_NAMES to remove "Red Eye(Conjunctivitis)"
+SEC_CLASS_NAMES = ["Healthy", "Pinguecula", "Pterygium Stage 1 (Trace-Mild)", "Pterygium Stage 2 (Moderate-Severe)"]
 
 # Thresholds
 CONFIDENCE_THRESHOLD = 0.60
@@ -21,9 +22,11 @@ TEXTS = {
     "en": {
         "page_title": "Ocular scan ",
         "app_header": "👀 OcuScanAI",
-        "app_subheader": "Your intelligent assistant for preliminary eye health checks (Healthy, Pinguecula, Pterygium).", 
+        # Updated subheader to remove "Red Eye"
+        "app_subheader": "Your intelligent assistant for preliminary eye health checks (Healthy, Pinguecula, Pterygium).",
         "welcome_title": "Welcome!",
-        "welcome_message": "Let AI help you quickly screen for common eye conditions like Pinguecula and Pterygium (both early and advanced stages), or just check if your eyes appear healthy.", 
+        # Updated welcome message to remove "Red Eye"
+        "welcome_message": "Let AI help you quickly screen for common eye conditions like Pinguecula, Pterygium (both early and advanced stages), or just check if your eyes appear healthy.",
         "how_to_use_title": "How to use",
         "step1_title": "📸 Input an Image:",
         "step1_desc": "Take or upload a clear photo of your eye (just make sure we can see your full eye like 👁️) so we can help check it better!",
@@ -91,9 +94,11 @@ TEXTS = {
     "th": {
         "page_title": "เครื่องมือตรวจสภาพดวงตา",
         "app_header": "👀 OcuScanAI",
-        "app_subheader": "ผู้ช่วยตรวจสุขภาพตาด้วยตัวเอง (เช็คตาปกติ ต้อลม ต้อเนื้อ).", 
+        # Updated subheader to remove "ตาแดง"
+        "app_subheader": "ผู้ช่วยตรวจสุขภาพตาด้วยตัวเอง (เช็คตาปกติ ต้อลม ต้อเนื้อ).",
         "welcome_title": "ยินดีต้อนรับครับ!",
-        "welcome_message": "ให้ AI ช่วยตรวจเบื้องต้นว่าตาของคุณเป็นต้อลม ต้อเนื้อ (ตั้งแต่ระยะเริ่มต้นจนถึงระยะรุนแรง) หรือแค่เช็คว่าตาดูปกติดีอยู่ไหมแบบรวดเร็วและง่ายครับ", 
+        # Updated welcome message to remove "ตาแดง"
+        "welcome_message": "ให้ AI ช่วยตรวจเบื้องต้นว่าตาของคุณเป็นต้อลม ต้อเนื้อ (ตั้งแต่ระยะเริ่มต้นจนถึงระยะรุนแรง) หรือแค่เช็คว่าตาดูปกติดีอยู่ไหมแบบรวดเร็วและง่ายครับ",
         "how_to_use_title": "วิธีการใช้งาน",
         "step1_title": "📸 ขั้นตอนที่ 1: ใส่รูปภาพ",
         "step1_desc": "อัปโหลดรูปถ่ายดวงตาที่ชัดหรือจะถ่ายด้วยกล้อง (แต่ต้องเห็นดวงตาทั้งดวงแบบชัดๆนะ 👁️) เพื่อให้ AI วิเคราะห์ได้แม่นยำขึ้น",
@@ -152,7 +157,7 @@ TEXTS = {
 }
 # --- Initialize session state for language ---
 if 'language' not in st.session_state:
-    st.session_state.language = 'en'
+    st.session_state.language = 'en' # Default to English
 
 def get_text(key, *args):
     """Retrieves translated text for a given key in the current language."""
@@ -180,62 +185,24 @@ if 'current_input_method' not in st.session_state:
 # --- Load Models (Cached) ---
 @st.cache_resource
 def load_first_model():
-    try:
-        # Check if file exists
-        if not os.path.exists(FIRST_MODEL_PATH):
-            st.error(f"Model file not found at: {FIRST_MODEL_PATH}")
-            st.stop()
-            
-        # Try loading with different approaches
+    with st.spinner(get_text("loading_first_model")):
         try:
-            # Standard load
             model = load_model(FIRST_MODEL_PATH)
-            st.success("Successfully loaded eye detection model!")
             return model
         except Exception as e:
-            st.warning(f"Standard load failed, trying alternative method... Error: {str(e)}")
-            try:
-                # Try loading with custom objects
-                model = tf.keras.models.load_model(
-                    FIRST_MODEL_PATH,
-                    compile=False,
-                    custom_objects=None
-                )
-                return model
-            except Exception as e:
-                st.error(f"Failed to load eye detection model: {str(e)}")
-                st.stop()
-    except Exception as e:
-        st.error(f"Critical error loading model: {str(e)}")
-        st.stop()
+            st.error(get_text("failed_to_load_first_model", e, FIRST_MODEL_PATH))
+            st.stop()
 
 @st.cache_resource
 def load_sec_model():
-    try:
-        if not os.path.exists(SEC_MODEL_PATH):
-            st.error(f"Model file not found at: {SEC_MODEL_PATH}")
-            st.stop()
-            
-        # Try loading with different approaches
+    with st.spinner(get_text("loading_sec_model")):
         try:
+            # Ensure the path matches your retrained model
             model = load_model(SEC_MODEL_PATH)
-            st.success("Successfully loaded eye analysis model!")
             return model
         except Exception as e:
-            st.warning(f"Standard load failed, trying alternative method... Error: {str(e)}")
-            try:
-                model = tf.keras.models.load_model(
-                    SEC_MODEL_PATH,
-                    compile=False,
-                    custom_objects=None
-                )
-                return model
-            except Exception as e:
-                st.error(f"Failed to load eye analysis model: {str(e)}")
-                st.stop()
-    except Exception as e:
-        st.error(f"Critical error loading model: {str(e)}")
-        st.stop()
+            st.error(get_text("failed_to_load_sec_model", e, SEC_MODEL_PATH))
+            st.stop()
 
 first_model = load_first_model()
 sec_model = load_sec_model()
@@ -243,17 +210,21 @@ sec_model = load_sec_model()
 # --- Preprocessing ---
 def preprocess_image(image_np, target_size=(320, 280)):
     """Resizes, converts to RGB, and expands dimensions for model input."""
-    try:
-        image_resized = cv2.resize(image_np, target_size)
-        image_rgb = cv2.cvtColor(image_resized, cv2.COLOR_BGR2RGB)
-        image_array = np.expand_dims(image_rgb.astype("float32"), axis=0)
-        return image_array
-    except Exception as e:
-        st.error(f"Image preprocessing failed: {str(e)}")
-        return None
+    # Handle both grayscale (1 channel) and color (3/4 channel) images
+    if len(image_np.shape) == 2:  # Grayscale image
+        image_rgb = cv2.cvtColor(image_np, cv2.COLOR_GRAY2RGB)
+    elif image_np.shape[2] == 4:  # Image with alpha channel
+        image_rgb = cv2.cvtColor(image_np, cv2.COLOR_BGRA2RGB)
+    else:  # Assume BGR or RGB
+        image_rgb = cv2.cvtColor(image_np, cv2.COLOR_BGR2RGB)
+
+    image_resized = cv2.resize(image_rgb, target_size)
+    image_array = np.expand_dims(image_resized.astype("float32"), axis=0)
+    return image_array
+
 # --- Prediction Logic ---
 def predict_eye_detection(image_np):
-    processed_image = preprocess_image(image_np)
+    processed_image = preprocess_image(image_np, target_size=(280,320))
     prediction = first_model.predict(processed_image)[0]
     predicted_class_index = np.argmax(prediction)
     confidence = prediction[predicted_class_index]
@@ -292,7 +263,7 @@ def display_prediction_result(label, confidence, is_eye_detection=False):
             st.success(get_text("healthy_success"))
             st.write(f"{get_text('confidence_label')} {confidence * 100:.2f}%")
             st.info(get_text("healthy_advice"))
-        else: # Pinguecula or Pterygium stages
+        else: # Pinguecula, Pterygium stages, or Red Eye
             st.warning(get_text("potential_condition_warning").format(label))
             st.write(f"{get_text('confidence_label')} {confidence * 100:.2f}%")
             st.info(get_text("professional_advice_needed"))
@@ -306,7 +277,9 @@ def display_prediction_result(label, confidence, is_eye_detection=False):
             elif label == "Pterygium Stage 2 (Moderate-Severe)":
                 st.markdown(get_text("pterygium2_advice"))
                 st.error(get_text("pterygium2_consult_doctor"))
-            # Removed Red Eye case
+            elif label == "Red Eye(Conjunctivitis)": # NEW: Red Eye Advice
+                st.markdown(get_text("red_eye_advice"))
+                st.info(get_text("red_eye_consult_doctor")) # Changed to info as Red Eye can be minor
 
 # --- Streamlit UI ---
 
@@ -326,7 +299,7 @@ with st.sidebar:
 
     if selected_lang_key != st.session_state.language:
         st.session_state.language = selected_lang_key
-        st.rerun()
+        st.rerun() # Rerun the app to apply the new language immediately
 
 # Header Section
 st.markdown(
@@ -373,21 +346,24 @@ def handle_image_input(uploaded_bytes, method_name, cropper_key):
     if (uploaded_bytes is not None and st.session_state.img_raw_bytes != uploaded_bytes) or \
        (st.session_state.current_input_method != method_name and uploaded_bytes is not None):
         st.session_state.img_raw_bytes = uploaded_bytes
-        st.session_state.img_for_prediction = None
+        st.session_state.img_for_prediction = None  # Clear previously cropped image
         st.session_state.current_input_method = method_name
-        st.rerun()
+        st.rerun() # Trigger a rerun to clear old display elements and re-render with new raw image for cropper
 
     # Case 2: The 'x' button was clicked, or camera input was cleared (uploaded_bytes is None)
+    # and the current method matches. This means the user explicitly cleared the input.
     elif uploaded_bytes is None and st.session_state.current_input_method == method_name:
-        if st.session_state.img_raw_bytes is not None:
+        if st.session_state.img_raw_bytes is not None: # Only clear if there was an image to begin with
             st.session_state.img_raw_bytes = None
             st.session_state.img_for_prediction = None
-            st.session_state.current_input_method = "none"
-            st.rerun()
+            st.session_state.current_input_method = "none" # Reset active method
+            st.rerun() # Trigger a rerun to clear the display
 
     # If the current input method is active and we have raw image bytes
     if st.session_state.current_input_method == method_name and st.session_state.img_raw_bytes:
+        # Decode bytes to numpy array using OpenCV
         img_np_decoded = cv2.imdecode(np.frombuffer(st.session_state.img_raw_bytes, np.uint8), cv2.IMREAD_COLOR)
+        # Convert OpenCV's BGR to PIL's RGB
         img_pil = Image.fromarray(cv2.cvtColor(img_np_decoded, cv2.COLOR_BGR2RGB))
 
         st.markdown(f"### {get_text('crop_step_title')}")
@@ -395,15 +371,17 @@ def handle_image_input(uploaded_bytes, method_name, cropper_key):
         cropped_img = st_cropper(
             img_pil,
             aspect_ratio=(320, 280),
-            box_color='#FF4B4B',
+            box_color='#FF4B4B', # A distinct color for the crop box
             key=cropper_key
         )
         if cropped_img:
-            st.session_state.img_for_prediction = cv2.cvtColor(np.array(cropped_img), cv2.COLOR_BGR2RGB)
+            # Update the image for prediction ONLY if the cropper provides a valid output
+            st.session_state.img_for_prediction = cv2.cvtColor(np.array(cropped_img), cv2.COLOR_BGR2RGB) # Ensure RGB for further processing
             st.markdown("---")
             st.image(cropped_img, caption=get_text("cropped_image_caption"), use_container_width=True)
             st.markdown("---")
         else:
+            # If cropped_img is None (e.g., first render of cropper after new upload), ensure img_for_prediction is cleared
             st.session_state.img_for_prediction = None
 
 
@@ -438,6 +416,7 @@ if st.session_state.img_for_prediction is not None:
     if st.button(get_text("analyze_button"), type="primary", use_container_width=True):
         st.subheader(get_text("analysis_results_header"))
         with st.spinner(get_text("analyzing_image")):
+            # Create columns for side-by-side display on larger screens, stacks on mobile
             col1, col2 = st.columns(2)
 
             with col1:
@@ -446,7 +425,8 @@ if st.session_state.img_for_prediction is not None:
                 display_prediction_result(eye_label, eye_confidence, is_eye_detection=True)
 
             if "No Eye Detected" in eye_label and eye_confidence > CONFIDENCE_THRESHOLD:
-                col2.markdown(f"#### {get_text('eye_condition_analysis_title')}")
+                # If no eye is detected, no need to proceed to the second model
+                col2.markdown(f"#### {get_text('eye_condition_analysis_title')}") # Placeholder for clarity
                 col2.warning(get_text("cannot_analyze_condition"))
             else:
                 with col2:
