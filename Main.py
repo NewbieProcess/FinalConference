@@ -180,23 +180,62 @@ if 'current_input_method' not in st.session_state:
 # --- Load Models (Cached) ---
 @st.cache_resource
 def load_first_model():
-    with st.spinner(get_text("loading_first_model")):
+    try:
+        # Check if file exists
+        if not os.path.exists(FIRST_MODEL_PATH):
+            st.error(f"Model file not found at: {FIRST_MODEL_PATH}")
+            st.stop()
+            
+        # Try loading with different approaches
         try:
+            # Standard load
             model = load_model(FIRST_MODEL_PATH)
+            st.success("Successfully loaded eye detection model!")
             return model
         except Exception as e:
-            st.error(get_text("failed_to_load_first_model", e, FIRST_MODEL_PATH))
-            st.stop()
+            st.warning(f"Standard load failed, trying alternative method... Error: {str(e)}")
+            try:
+                # Try loading with custom objects
+                model = tf.keras.models.load_model(
+                    FIRST_MODEL_PATH,
+                    compile=False,
+                    custom_objects=None
+                )
+                return model
+            except Exception as e:
+                st.error(f"Failed to load eye detection model: {str(e)}")
+                st.stop()
+    except Exception as e:
+        st.error(f"Critical error loading model: {str(e)}")
+        st.stop()
 
 @st.cache_resource
 def load_sec_model():
-    with st.spinner(get_text("loading_sec_model")):
+    try:
+        if not os.path.exists(SEC_MODEL_PATH):
+            st.error(f"Model file not found at: {SEC_MODEL_PATH}")
+            st.stop()
+            
+        # Try loading with different approaches
         try:
             model = load_model(SEC_MODEL_PATH)
+            st.success("Successfully loaded eye analysis model!")
             return model
         except Exception as e:
-            st.error(get_text("failed_to_load_sec_model", e, SEC_MODEL_PATH))
-            st.stop()
+            st.warning(f"Standard load failed, trying alternative method... Error: {str(e)}")
+            try:
+                model = tf.keras.models.load_model(
+                    SEC_MODEL_PATH,
+                    compile=False,
+                    custom_objects=None
+                )
+                return model
+            except Exception as e:
+                st.error(f"Failed to load eye analysis model: {str(e)}")
+                st.stop()
+    except Exception as e:
+        st.error(f"Critical error loading model: {str(e)}")
+        st.stop()
 
 first_model = load_first_model()
 sec_model = load_sec_model()
@@ -204,11 +243,14 @@ sec_model = load_sec_model()
 # --- Preprocessing ---
 def preprocess_image(image_np, target_size=(320, 280)):
     """Resizes, converts to RGB, and expands dimensions for model input."""
-    image_resized = cv2.resize(image_np, target_size)
-    image_rgb = cv2.cvtColor(image_resized, cv2.COLOR_BGR2RGB)
-    image_array = np.expand_dims(image_rgb.astype("float32"), axis=0)
-    return image_array
-
+    try:
+        image_resized = cv2.resize(image_np, target_size)
+        image_rgb = cv2.cvtColor(image_resized, cv2.COLOR_BGR2RGB)
+        image_array = np.expand_dims(image_rgb.astype("float32"), axis=0)
+        return image_array
+    except Exception as e:
+        st.error(f"Image preprocessing failed: {str(e)}")
+        return None
 # --- Prediction Logic ---
 def predict_eye_detection(image_np):
     processed_image = preprocess_image(image_np)
