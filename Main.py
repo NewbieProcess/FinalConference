@@ -7,13 +7,13 @@ from streamlit_cropper import st_cropper
 from PIL import Image
 
 # --- Constants ---
-FIRST_MODEL_PATH = "EyesDetect.keras"
+FIRST_MODEL_PATH = "EyeDetect.keras"
 FIRST_CLASS_NAMES = ["Eye Detected", "No Eye Detected"]
-SEC_MODEL_PATH = "44A.FinalJingJing_320x280.keras"
-SEC_CLASS_NAMES = ["Healthy", "Pinguecula", "Pterygium Stage 1 (Trace-Mild)", "Pterygium Stage 2 (Moderate-Severe)"]
+SEC_MODEL_PATH = "EyeAnalysis.keras" # Consider renaming your model file to reflect the new class
+SEC_CLASS_NAMES = ["Healthy", "Pinguecula", "Pterygium Stage 1 (Trace-Mild)", "Pterygium Stage 2 (Moderate-Severe)", "Red Eye(Conjunctivitis)"]
 
 # Thresholds
-CONFIDENCE_THRESHOLD = 0.50
+CONFIDENCE_THRESHOLD = 0.60
 MARGIN_THRESHOLD = 0.10
 
 # --- Translation Data ---
@@ -21,12 +21,12 @@ TEXTS = {
     "en": {
         "page_title": "Ocular scan ",
         "app_header": "👀 OcuScanAI",
-        "app_subheader": "Your intelligent assistant for preliminary eye health checks (Healthy, Pinguecula, Pterygium).",
+        "app_subheader": "Your intelligent assistant for preliminary eye health checks (Healthy, Pinguecula, Pterygium, Red Eye).", # UPDATED
         "welcome_title": "Welcome!",
-        "welcome_message": "Let AI help you quickly screen for common eye conditions like Pinguecula and Pterygium (both early and advanced stages), or just check if your eyes appear healthy.",
-        "how_to_use_title": "How to use OcuScanAI",
+        "welcome_message": "Let AI help you quickly screen for common eye conditions like Pinguecula, Pterygium (both early and advanced stages), Red Eye, or just check if your eyes appear healthy.", # UPDATED
+        "how_to_use_title": "How to use",
         "step1_title": "📸 Input an Image:",
-        "step1_desc": "Take or upload a clear photo of your eye (just make sure we can see your full eye like this 👉�👁️) so we can help check it better!",
+        "step1_desc": "Take or upload a clear photo of your eye (just make sure we can see your full eye like 👁️) so we can help check it better!",
         "step2_title": "✂️ Crop your image:",
         "step2_desc": "Drag the box to perfectly frame your eye. A precise crop helps our AI analyze it more accurately.",
         "step3_title": "🔬 Get the result:",
@@ -76,9 +76,14 @@ TEXTS = {
         "pterygium1_consult_doctor": "⚠️ **Please consult an ophthalmologist:** For proper diagnosis and treatment plan.",
         "pterygium2_advice": """
         **Additional advice for Pterygium Stage 2 (Moderate-Severe):**
-        Pterygium at this stage may be more severe and can affect vision. It is crucial to be assessed by an ophthalmologist as soon as possible to consider appropriate treatment, which may include surgery.
+        Pterygium at this stage may be more severe and can affect vision , as it is approaching or nearly covering the pupil. It is crucial to be assessed by an ophthalmologist as soon as possible to consider appropriate treatment, which may include surgery.
         """,
         "pterygium2_consult_doctor": "🚨 **Please see an ophthalmologist urgently:** For necessary diagnosis and treatment planning.",
+        "red_eye_advice": """
+        **Additional advice for Red Eye:**
+        Redness in the eye can be caused by many factors, including irritation, allergies, infection, or other underlying conditions. While often harmless, persistent or severe redness, especially with pain, discharge, or vision changes, warrants medical attention.
+        """,
+        "red_eye_consult_doctor": "⚠️ **Please consult a healthcare professional or ophthalmologist:** To determine the cause of the redness and receive appropriate treatment.", # NEW: Red Eye Consult Doctor
         "initial_message": "Upload or capture an image in **Step 1** above, then crop it in **Step 2**. The analysis button will appear here once ready!",
         "loading_first_model": "🚀 Loading AI model for eye detection...",
         "failed_to_load_first_model": "System error occurred.(I)",
@@ -88,67 +93,70 @@ TEXTS = {
         "language_selector_label": "Select Language",
         "sidebar_settings_title": "Settings"
     },
-    "th": {
-        "page_title": "เครื่องมือตรวจสภาพดวงตา",
-        "app_header": "👀 OcuScanAI",
-        "app_subheader": "ผู้ช่วยตรวจสุขภาพตาด้วยตัวเอง (เช็คตาปกติ ต้อลม ต้อเนื้อ)",
-        "welcome_title": "ยินดีต้อนรับครับ!",
-        "welcome_message": "ให้ AI ช่วยตรวจเบื้องต้นว่าตาของคุณเป็นต้อลมหรือต้อเนื้อ (ตั้งแต่ระยะเริ่มต้นจนถึงระยะรุนแรง)หรือแค่เช็คว่าตาดูปกติดีอยู่ไหมแบบรวดเร็วและง่ายครับ",
-        "how_to_use_title": "วิธีใช้ OcuScanAI",
-        "step1_title": "📸 ขั้นตอนที่ 1: ใส่รูปภาพ",
-        "step1_desc": "อัปโหลดรูปถ่ายดวงตาที่ชัดหรือจะถ่ายด้วยกล้อง (แต่ต้องเห็นดวงตาทั้งดวงแบบชัดๆแบบนี้ 👉🏻👁️) เพื่อให้ AI วิเคราะห์ได้แม่นยำขึ้น",
-        "step2_title": "✂️ ขั้นตอนที่ 2: ครอบตัดรูป",
-        "step2_desc": "ลากกรอบครอบตัดให้พอดีกับดวงตา",
-        "step3_title": "🔬 ขั้นตอนที่ 3: ดูผลวิเคราะห์",
-        "step3_desc": "กดปุ่ม 'วิเคราะห์' เพื่อดูผลการวินิจฉัยเบื้องต้นจาก AI ครับ",
-        "disclaimer_title": "ข้อควรทราบ:",
-        "disclaimer_text": "OcuScanAI เป็นแค่เครื่องมือช่วยดูข้อมูลเบื้องต้นเท่านั้น ไม่ใช่แทนคำแนะนำหรือการวินิจฉัยจากแพทย์จริงครับ หากมีอาการหรือข้อสงสัย ควรไปพบจักษุแพทย์เพื่อรับคำแนะนำที่ถูกต้องครับ",
-        "start_scan_subheader": "📸 เริ่มสแกนดวงตา",
-        "choose_interaction": "เลือกวิธีใช้แอป:",
-        "tip_info": "💡 **Tips:** ใช้รูปถ่ายที่มีแสงสว่างเพียงพอและเห็นดวงตาชัด ๆ เพื่อผลลัพธ์ที่แม่นยำที่สุด",
-        "tab_upload_image": "🖼️ อัปโหลดรูป",
-        "tab_use_camera": "📸 ใช้กล้อง",
-        "upload_section_title": "🖼️ อัปโหลดรูปจากเครื่อง",
-        "upload_section_desc": "เลือกอัปโหลดรูปดวงตาจากคอมพิวเตอร์หรือมือถือรองรับเฉพาะไฟล์ **JPG, JPEG, PNG**",
-        "uploader_label": "ลากรูปมาวางหรือคลิกเพื่อเลือกไฟล์",
-        "uploader_help": "อัปโหลดรูปถ่ายดวงตาที่ชัดเจนเพื่อให้ AI วิเคราะห์ครับ",
-        "camera_section_title": "📸 อัพรูปจากกล้อง",
-        "camera_section_desc": "ถ่ายรูปดวงตาควรตรวจสอบให้มีแสงสว่างพอเหมาะเพื่อภาพที่ชัดเจนครับ",
-        "camera_label": "ถ่ายรูปดวงตาของคุณครับ",
-        "camera_help": "ถ่ายรูปดวงตาด้วยกล้องอุปกรณ์ของคุณครับ",
-        "crop_step_title": "✂️ ขั้นตอนที่ 2: ครอบรูปดวงตา",
-        "crop_step_info": "**ลากกรอบ**ครอบให้พอดีกับดวงตา",
-        "cropped_image_caption": "✅ รูปที่ครอบตัดพร้อมสำหรับวิเคราะห์ครับ",
-        "analyze_step_title": "🔬 ขั้นตอนที่ 3: ผลวิเคราะห์",
-        "analyze_step_info": "เมื่อพอใจกับรูปที่ครอบแล้วสามารถกดปุ่ม 'วิเคราะห์' เพื่อดูผลได้ครับ",
-        "analyze_button": "🚀 วิเคราะห์รูปดวงตา",
-        "analysis_results_header": "📊 ผลวิเคราะห์",
-        "eye_detection_result_title": "ผลตรวจจับรูปดวงตา",
-        "eye_condition_analysis_title": "ผลวิเคราะห์สภาพดวงตาครับ",
-        "no_eye_detected_error": "❌ **ไม่พบดวงตา**",
-        "no_eye_detected_advice": "ตอนนี้ AI ยังตรวจสอบดวงตาของคุณไม่ได้ ลองอัพรูปหรือครอปรูปใหม่อีกทีดูนะครับ",
-        "cannot_analyze_condition": "🚫 ไม่สามารถวิเคราะห์ได้ ไม่พบดวงตาในรูป",
-        "uncertain_diagnosis_warning": "⚠️ **ผลไม่แน่ชัด**",
-        "confidence_label": "ความมั่นใจ:",
-        "uncertain_advice": "AI ยังไม่มั่นใจในผลนี้ครับ",
-        "healthy_success": "🎉 **ตาดูปกติดีครับ!**",
-        "healthy_advice": "ดีมากครับ! ดวงตาของคุณดูปกติดี แต่ควรไปตรวจตากับแพทย์เป็นประจำด้วยนะครับ",
-        "potential_condition_warning": "🚨 **พบภาวะที่อาจเป็น: {} ครับ**",
-        "professional_advice_needed": "นี่เป็นแค่การวิเคราะห์เบื้องต้นจากAIเท่านั้น ควรไปพบแพทย์เพื่อวินิจฉัยและรักษาอย่างถูกต้องครับ",
-        "pinguecula_advice": "**คำแนะนำเพิ่มเติมสำหรับต้อลมครับ:** ถ้าตาเริ่มระคายเคือง อาจใช้ยาหยอดตาช่วยบรรเทาอาการได้ แต่ยาหยอดตาไม่ได้รักษาต้อลมให้หายไปโดยตรงนะครับ ช่วยลดอาการอักเสบและระคายเคือง และป้องกันไม่ให้ต้อลมลุกลามครับ",
-        "pterygium1_advice": "**คำแนะนำสำหรับต้อเนื้อ ระยะที่ 1 (เริ่มต้น) :** ระยะแรกสามารถใช้ยาหยอดตาเพื่อลดตาแดงและระคายเคือง ช่วยลดการอักเสบและชะลอการลุกลามแต่ยาหยอดตาไม่สามารถรักษาต้อเนื้อให้หายได้ ควรไปพบจักษุแพทย์เพื่อตรวจเพิ่มเติม",
-        "pterygium1_consult_doctor": "⚠️ **โปรดพบจักษุแพทย์ครับ:** เพื่อวินิจฉัยและวางแผนรักษาที่เหมาะสม",
-        "pterygium2_advice": "**คำแนะนำสำหรับต้อเนื้อ ระยะที่ 2 (รุนแรง) ครับ:** ต้อเนื้อระยะนี้อาจมีผลต่อการมองเห็น ควรไปพบแพทย์โดยเร็วเพื่อประเมินและพิจารณาการรักษา ซึ่งอาจรวมถึงการผ่าตัด",
-        "pterygium2_consult_doctor": "🚨 **โปรดไปพบจักษุแพทย์ด่วนครับ:** เพื่อรับคำวินิจฉัยและรักษา",
-        "initial_message": "อัปโหลดหรือถ่ายรูปใน **ขั้นตอนที่ 1** แล้วครอบตัดใน **ขั้นตอนที่ 2** ปุ่มวิเคราะห์จะโผล่มาเมื่อพร้อมใช้งานครับ!",
-        "loading_first_model": "🚀 กำลังโหลดโมเดล AI สำหรับตรวจจับดวงตา...",
-        "failed_to_load_first_model": "ระบบมีปัญหา(I)",
-        "loading_sec_model": "🧠 กำลังโหลดโมเดล AI สำหรับวิเคราะห์สภาพตา...",
-        "failed_to_load_sec_model": "ระบบมีปัญหา(II)",
-        "analyzing_image": "กำลังวิเคราะห์รูปภาพ... กรุณารอสักครู่ครับ",
-        "language_selector_label": "เลือกภาษา",
-        "sidebar_settings_title": "ตั้งค่า"
-    }
+  "th": {
+    "page_title": "เครื่องมือตรวจสภาพดวงตา",
+    "app_header": "👀 OcuScanAI",
+    "app_subheader": "ผู้ช่วยตรวจสุขภาพตาด้วยตัวเอง (เช็คตาปกติ ต้อลม ต้อเนื้อ ตาแดง).", # UPDATED
+    "welcome_title": "ยินดีต้อนรับครับ!",
+    "welcome_message": "ให้ AI ช่วยตรวจเบื้องต้นว่าตาของคุณเป็นต้อลม ต้อเนื้อ (ตั้งแต่ระยะเริ่มต้นจนถึงระยะรุนแรง) ตาแดง หรือแค่เช็คว่าตาดูปกติดีอยู่ไหมแบบรวดเร็วและง่ายครับ", # UPDATED
+    "how_to_use_title": "วิธีการใช้งาน",
+    "step1_title": "📸 ขั้นตอนที่ 1: ใส่รูปภาพ",
+    "step1_desc": "อัปโหลดรูปถ่ายดวงตาที่ชัดหรือจะถ่ายด้วยกล้อง (แต่ต้องเห็นดวงตาทั้งดวงแบบชัดๆนะ 👁️) เพื่อให้ AI วิเคราะห์ได้แม่นยำขึ้น",
+    "step2_title": "✂️ ขั้นตอนที่ 2: ครอบตัดรูป",
+    "step2_desc": "ลากกรอบครอบตัดให้พอดีกับดวงตา",
+    "step3_title": "🔬 ขั้นตอนที่ 3: ดูผลวิเคราะห์",
+    "step3_desc": "กดปุ่ม 'วิเคราะห์' เพื่อดูผลการวินิจฉัยเบื้องต้นจาก AI ครับ",
+    "disclaimer_title": "ข้อควรทราบ:",
+    "disclaimer_text": "OcuScanAI เป็นแค่เครื่องมือช่วยดูข้อมูลเบื้องต้นเท่านั้น ไม่ใช่คำแนะนำหรือการวินิจฉัยจากแพทย์ หากมีอาการหรือข้อสงสัย ควรไปพบจักษุแพทย์เพื่อรับคำแนะนำที่ถูกต้องครับ",
+    "start_scan_subheader": "📸 เริ่มสแกนดวงตาของคุณได้เลยครับ",
+    "choose_interaction": "เลือกวิธีใช้แอปได้เลยครับ:",
+    "tip_info": "💡 **เคล็ดลับ:** ใช้รูปถ่ายที่มีแสงสว่างเพียงพอ และเห็นดวงตาชัด ๆ เพื่อผลลัพธ์ที่แม่นยำที่สุดครับ!",
+    "tab_upload_image": "🖼️ อัปโหลดรูป",
+    "tab_use_camera": "📸 ใช้กล้อง",
+    "upload_section_title": "🖼️ อัปโหลดรูปจากเครื่องของคุณครับ",
+    "upload_section_desc": "เลือกอัปโหลดรูปดวงตาจากคอมพิวเตอร์หรือมือถือรองรับเฉพาะไฟล์ **JPG, JPEG, PNG**",
+    "uploader_label": "ลากรูปมาวางหรือคลิกเพื่อเลือกไฟล์",
+    "uploader_help": "อัปโหลดรูปถ่ายดวงตาที่ชัดเจนเพื่อให้ AI วิเคราะห์ครับ",
+    "camera_section_title": "📸 อัพรูปจากกล้อง",
+    "camera_section_desc": "ถ่ายรูปดวงตาควรตรวจสอบให้มีแสงสว่างพอเหมาะเพื่อภาพที่ชัดเจนครับ",
+    "camera_label": "ถ่ายรูปดวงตาของคุณครับ",
+    "camera_help": "ถ่ายรูปดวงตาด้วยกล้องอุปกรณ์ของคุณครับ",
+    "crop_step_title": "✂️ ขั้นตอนที่ 2: ครอบตัดรูปของคุณ",
+    "crop_step_info": "**ลากกรอบ**ครอบให้พอดีกับดวงตา",
+    "cropped_image_caption": "✅ รูปที่ครอบตัดพร้อมสำหรับวิเคราะห์",
+    "analyze_step_title": "🔬 ขั้นตอนที่ 3: ผลวิเคราะห์",
+    "analyze_step_info": "เมื่อพอใจกับรูปที่ครอบแล้วสามารถกดปุ่ม 'วิเคราะห์' เพื่อดูผลได้ครับ",
+    "analyze_button": "🚀 วิเคราะห์รูปดวงตา",
+    "analysis_results_header": "📊 ผลวิเคราะห์",
+    "eye_detection_result_title": "ผลตรวจจับรูปดวงตา",
+    "eye_condition_analysis_title": "ผลวิเคราะห์สภาพดวงตาครับ",
+    "no_eye_detected_error": "❌ **ไม่พบดวงตา**",
+    "no_eye_detected_advice": "ตอนนี้ AI ยังตรวจสอบดวงตาของคุณไม่ได้ ลองอัพรูปหรือครอปรูปใหม่อีกทีดูนะครับ",
+    "cannot_analyze_condition": "🚫 ไม่สามารถวิเคราะห์ได้ ไม่พบดวงตาในรูป",
+    "uncertain_diagnosis_warning": "⚠️ **ผลไม่แน่ชัด**",
+    "confidence_label": "ความมั่นใจ:",
+    "uncertain_advice": "AI ยังไม่มั่นใจในผลนี้ครับ",
+    "healthy_success": "🎉 **ตาดูปกติดีครับ!**",
+    "healthy_advice": "ดีมากครับ! ดวงตาของคุณดูปกติดี แต่ควรไปตรวจตากับแพทย์เป็นประจำด้วยนะครับ",
+    "potential_condition_warning": "🚨 **พบภาวะที่อาจเป็น: {} ครับ**",
+    "professional_advice_needed": "นี่เป็นแค่การวิเคราะห์เบื้องต้นจากAIเท่านั้น ควรไปพบแพทย์เพื่อวินิจฉัยและรักษาอย่างถูกต้องครับ",
+    "pinguecula_advice": "**คำแนะนำเพิ่มเติมสำหรับต้อลมครับ:** ถ้าตาเริ่มระคายเคือง อาจใช้ยาหยอดตาช่วยบรรเทาอาการได้ แต่ยาหยอดตาไม่ได้รักษาต้อลมให้หายไปโดยตรงนะครับ ช่วยลดอาการอักเสบและระคายเคือง และป้องกันไม่ให้ต้อลมลุกลามครับ",
+    "pterygium1_advice": "**คำแนะนำสำหรับต้อเนื้อ ระยะที่ 1 (เริ่มต้น) :** ระยะแรกสามารถใช้ยาหยอดตาเพื่อลดตาแดงและระคายเคือง ช่วยลดการอักเสบและชะลอการลุกลามแต่ยาหยอดตาไม่สามารถรักษาต้อเนื้อให้หายได้ ควรไปพบจักษุแพทย์เพื่อตรวจเพิ่มเติม",
+    "pterygium1_consult_doctor": "⚠️ **โปรดพบจักษุแพทย์ครับ:** เพื่อวินิจฉัยและวางแผนรักษาที่เหมาะสม",
+    "pterygium2_advice": "**คำแนะนำสำหรับต้อเนื้อ ระยะที่ 2 (รุนแรง) ครับ:** ต้อเนื้อระยะนี้อาจมีผลต่อการมองเห็นเพราะใกล้เข้าสู้รูม่านตามากๆหรือเข้าสู่รูม่านตาแล้ว ควรไปพบแพทย์โดยเร็วเพื่อประเมินและพิจารณาการรักษา ซึ่งอาจรวมถึงการผ่าตัด",
+    "pterygium2_consult_doctor": "🚨 **โปรดไปพบจักษุแพทย์ด่วนครับ:** เพื่อรับคำวินิจฉัยและรักษา",
+    "red_eye_advice": """**คำแนะนำเพิ่มเติมสำหรับตาแดงครับ:**
+    ตาแดงอาจเกิดได้จากหลายสาเหตุ เช่น การระคายเคือง, ภูมิแพ้, การติดเชื้อ หรือภาวะทางการแพทย์อื่น ๆ แม้ว่ามักจะไม่เป็นอันตราย แต่หากตาแดงมีอาการต่อเนื่องหรือรุนแรง โดยเฉพาะอย่างยิ่งมีอาการปวด, มีขี้ตา, หรือการมองเห็นเปลี่ยนแปลงไป ควรปรึกษาแพทย์""",
+    "red_eye_consult_doctor": "⚠️ **โปรดปรึกษาแพทย์หรือจักษุแพทย์:** เพื่อหาสาเหตุของตาแดงและรับการรักษาที่เหมาะสมครับ", # NEW: Red Eye Consult Doctor (Thai)
+    "initial_message": "อัปโหลดหรือถ่ายรูปใน **ขั้นตอนที่ 1** แล้วครอบตัดใน **ขั้นตอนที่ 2** ปุ่มวิเคราะห์จะโผล่มาเมื่อพร้อมใช้งานครับ!",
+    "loading_first_model": "🚀 กำลังโหลดโมเดล AI สำหรับตรวจจับดวงตา...",
+    "failed_to_load_first_model": "ระบบมีปัญหา(I)",
+    "loading_sec_model": "🧠 กำลังโหลดโมเดล AI สำหรับวิเคราะห์สภาพตา...",
+    "failed_to_load_sec_model": "ระบบมีปัญหา(II)",
+    "analyzing_image": "กำลังวิเคราะห์รูปภาพ... กรุณารอสักครู่ครับ",
+    "language_selector_label": "เลือกภาษา",
+    "sidebar_settings_title": "ตั้งค่า"
+  }
 }
 # --- Initialize session state for language ---
 if 'language' not in st.session_state:
@@ -192,6 +200,7 @@ def load_first_model():
 def load_sec_model():
     with st.spinner(get_text("loading_sec_model")):
         try:
+            # Ensure the path matches your retrained model
             model = load_model(SEC_MODEL_PATH)
             return model
         except Exception as e:
@@ -202,7 +211,7 @@ first_model = load_first_model()
 sec_model = load_sec_model()
 
 # --- Preprocessing ---
-def preprocess_image(image_np, target_size=(280, 320)):
+def preprocess_image(image_np, target_size=(320, 280)):
     """Resizes, converts to RGB, and expands dimensions for model input."""
     image_resized = cv2.resize(image_np, target_size)
     image_rgb = cv2.cvtColor(image_resized, cv2.COLOR_BGR2RGB)
@@ -239,24 +248,20 @@ def display_prediction_result(label, confidence, is_eye_detection=False):
             st.error(get_text("no_eye_detected_error"))
             st.info(get_text("no_eye_detected_advice"))
         else:
-            st.success(f"✅ **{label}**")
-            # For eye detection, also show confidence
-            st.markdown(f"*{get_text('confidence_label')} {confidence * 100:.2f}%*")
-            st.progress(float(confidence))  # Visual confidence bar
-    else:  # Eye condition prediction
-        # Always show confidence and bar for condition analysis
-        st.markdown(f"*{get_text('confidence_label')} {confidence * 100:.2f}%*")
-        st.progress(float(confidence))  # Visual confidence bar
-
+            st.success(f"✅ **{label}** ")
+    else: # Eye condition prediction
         if label == "Uncertain":
             st.warning(get_text("uncertain_diagnosis_warning"))
+            st.write(f"{get_text('confidence_label')} {confidence * 100:.2f}%")
             st.info(get_text("uncertain_advice"))
         elif "Healthy" in label:
             st.balloons()
             st.success(get_text("healthy_success"))
+            st.write(f"{get_text('confidence_label')} {confidence * 100:.2f}%")
             st.info(get_text("healthy_advice"))
-        else:  # Pinguecula or Pterygium stages
+        else: # Pinguecula, Pterygium stages, or Red Eye
             st.warning(get_text("potential_condition_warning").format(label))
+            st.write(f"{get_text('confidence_label')} {confidence * 100:.2f}%")
             st.info(get_text("professional_advice_needed"))
 
             # Add specific advice based on the detected condition
@@ -268,7 +273,9 @@ def display_prediction_result(label, confidence, is_eye_detection=False):
             elif label == "Pterygium Stage 2 (Moderate-Severe)":
                 st.markdown(get_text("pterygium2_advice"))
                 st.error(get_text("pterygium2_consult_doctor"))
-
+            elif label == "Red Eye": # NEW: Red Eye Advice
+                st.markdown(get_text("red_eye_advice"))
+                st.info(get_text("red_eye_consult_doctor")) # Changed to info as Red Eye can be minor
 
 # --- Streamlit UI ---
 
@@ -295,7 +302,7 @@ st.markdown(
     f"""
     <div style="text-align: center; margin-bottom: 20px;">
         <h1>{get_text("app_header")}</h1>
-        <p>{get_text("app_subheader")}</p>
+         <p>{get_text("app_subheader")}</p>
     </div>
     """,
     unsafe_allow_html=True
@@ -308,15 +315,17 @@ st.markdown(
     **{get_text("welcome_title")}** {get_text("welcome_message")}
     """
 )
-# Use st.expander to make instructions collapsible
+
+# Collapsible "How to use" section
 with st.expander(f"**{get_text('how_to_use_title')}**"):
     st.markdown(
         f"""
-        1. 📸 **{get_text("step1_title")}** {get_text("step1_desc")}
-        2. ✂️ **{get_text("step2_title")}** {get_text("step2_desc")}
-        3. 🔬 **{get_text("step3_title")}** {get_text("step3_desc")}
+        1.  **{get_text("step1_title")}** {get_text("step1_desc")}
+        2.  **{get_text("step2_title")}** {get_text("step2_desc")}
+        3.  **{get_text("step3_title")}** {get_text("step3_desc")}
         """
     )
+
 st.markdown("---")
 st.markdown(f"**{get_text('disclaimer_title')}** {get_text('disclaimer_text')}")
 st.markdown("---")
@@ -333,7 +342,7 @@ def handle_image_input(uploaded_bytes, method_name, cropper_key):
     if (uploaded_bytes is not None and st.session_state.img_raw_bytes != uploaded_bytes) or \
        (st.session_state.current_input_method != method_name and uploaded_bytes is not None):
         st.session_state.img_raw_bytes = uploaded_bytes
-        st.session_state.img_for_prediction = None # Clear previously cropped image
+        st.session_state.img_for_prediction = None  # Clear previously cropped image
         st.session_state.current_input_method = method_name
         st.rerun() # Trigger a rerun to clear old display elements and re-render with new raw image for cropper
 
@@ -357,7 +366,7 @@ def handle_image_input(uploaded_bytes, method_name, cropper_key):
         st.info(get_text("crop_step_info"))
         cropped_img = st_cropper(
             img_pil,
-            aspect_ratio=(280, 320),
+            aspect_ratio=(320, 280),
             box_color='#FF4B4B', # A distinct color for the crop box
             key=cropper_key
         )
@@ -368,9 +377,8 @@ def handle_image_input(uploaded_bytes, method_name, cropper_key):
             st.image(cropped_img, caption=get_text("cropped_image_caption"), use_container_width=True)
             st.markdown("---")
         else:
-            # If cropped_img is None, display a placeholder message
+            # If cropped_img is None (e.g., first render of cropper after new upload), ensure img_for_prediction is cleared
             st.session_state.img_for_prediction = None
-            st.info("Awaiting crop selection...")
 
 
 # --- Image Input & Cropping using Tabs ---
@@ -398,10 +406,9 @@ with tab2:
 st.divider()
 
 # --- Prediction Button & Results ---
-st.markdown(f"### {get_text('analyze_step_title')}")
-st.info(get_text("analyze_step_info"))
-
 if st.session_state.img_for_prediction is not None:
+    st.markdown(f"### {get_text('analyze_step_title')}")
+    st.info(get_text("analyze_step_info"))
     if st.button(get_text("analyze_button"), type="primary", use_container_width=True):
         st.subheader(get_text("analysis_results_header"))
         with st.spinner(get_text("analyzing_image")):
