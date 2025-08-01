@@ -5,21 +5,18 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 from streamlit_cropper import st_cropper
 from PIL import Image
-
 import os
 
-# --- ตั้งค่าเพื่อซ่อนข้อความเตือนของ TensorFlow ---
+# --- Environment Setup (No GPU support for Streamlit) ---
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+tf.get_logger().setLevel('ERROR')
 
 # --- Constants ---
-# ตรวจสอบชื่อไฟล์โมเดลอีกครั้งว่าตรงกับไฟล์ในเครื่องของคุณหรือไม่
 FIRST_MODEL_PATH = "EyeDetect.keras"
 FIRST_CLASS_NAMES = ["Eye Detected", "No Eye Detected"]
 SEC_MODEL_PATH = "EyeAnalysis.keras"
 SEC_CLASS_NAMES = ["Healthy", "Pinguecula", "Pterygium Stage 1 (Trace-Mild)", "Pterygium Stage 2 (Moderate-Severe)", "Red Eye(Conjunctivitis)"]
-
-# Thresholds
 CONFIDENCE_THRESHOLD = 0.60
 MARGIN_THRESHOLD = 0.10
 
@@ -165,18 +162,15 @@ TEXTS = {
         "sidebar_settings_title": "ตั้งค่า"
     }
 }
-# --- Initialize session state for language ---
+
 if 'language' not in st.session_state:
     st.session_state.language = 'en'
-
 def get_text(key, *args):
-    """Retrieves translated text for a given key in the current language."""
     text = TEXTS[st.session_state.language].get(key, f"Translation Missing: {key}")
     if args:
         return text.format(*args)
     return text
 
-# --- Page Configuration ---
 st.set_page_config(
     page_title=get_text("page_title"),
     page_icon="👁️",
@@ -184,7 +178,6 @@ st.set_page_config(
     initial_sidebar_state="auto"
 )
 
-# --- Initialize session state for image management ---
 if 'img_raw_bytes' not in st.session_state:
     st.session_state.img_raw_bytes = None
 if 'img_for_prediction' not in st.session_state:
@@ -192,10 +185,12 @@ if 'img_for_prediction' not in st.session_state:
 if 'current_input_method' not in st.session_state:
     st.session_state.current_input_method = "none"
 
-# --- Load Models (Cached) ---
 @st.cache_resource
 def load_first_model():
     with st.spinner(get_text("loading_first_model")):
+        if not os.path.exists(FIRST_MODEL_PATH):
+            st.error(f"Error: Model file not found at '{FIRST_MODEL_PATH}'")
+            st.stop()
         try:
             model = load_model(FIRST_MODEL_PATH)
             return model
@@ -206,6 +201,9 @@ def load_first_model():
 @st.cache_resource
 def load_sec_model():
     with st.spinner(get_text("loading_sec_model")):
+        if not os.path.exists(SEC_MODEL_PATH):
+            st.error(f"Error: Model file not found at '{SEC_MODEL_PATH}'")
+            st.stop()
         try:
             model = load_model(SEC_MODEL_PATH)
             return model
@@ -216,21 +214,14 @@ def load_sec_model():
 first_model = load_first_model()
 sec_model = load_sec_model()
 
-# --- Preprocessing ---
 def preprocess_image(image_np, target_size=(320, 280)):
-    """Resizes, converts to RGB, and expands dimensions for model input."""
-    # Ensure the image is in a valid format before processing
-    if image_np.ndim == 2:
-        image_np = cv2.cvtColor(image_np, cv2.COLOR_GRAY2BGR)
-    elif image_np.ndim == 3 and image_np.shape[2] == 4: # PNGs
-        image_np = cv2.cvtColor(image_np, cv2.COLOR_BGRA2BGR)
-
-    image_resized = cv2.resize(image_np, target_size)
-    image_rgb = cv2.cvtColor(image_resized, cv2.COLOR_BGR2RGB)
-    image_array = np.expand_dims(image_rgb.astype("float32"), axis=0)
+    # Convert from PIL (RGB) to OpenCV (BGR) for consistent processing with cv2
+    image_bgr = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
+    image_resized = cv2.resize(image_bgr, target_size)
+    # The models expect BGR, so no need for another conversion.
+    image_array = np.expand_dims(image_resized.astype("float32"), axis=0)
     return image_array
 
-# --- Prediction Logic ---
 def predict_eye_detection(image_np):
     processed_image = preprocess_image(image_np)
     prediction = first_model.predict(processed_image)[0]
@@ -241,27 +232,22 @@ def predict_eye_detection(image_np):
 def predict_eye_condition(image_np):
     processed_image = preprocess_image(image_np)
     prediction = sec_model.predict(processed_image)[0]
-
     top_2 = np.sort(prediction)[-2:]
     confidence = top_2[-1]
     margin = top_2[-1] - top_2[-2]
-
     predicted_class_index = np.argmax(prediction)
-
     if confidence < CONFIDENCE_THRESHOLD or margin < MARGIN_THRESHOLD:
         return "Uncertain", confidence
     return SEC_CLASS_NAMES[predicted_class_index], confidence
 
-# --- Helper Function for Display ---
 def display_prediction_result(label, confidence, is_eye_detection=False):
-    """Displays prediction results with appropriate styling and advice."""
     if is_eye_detection:
         if "No Eye" in label:
             st.error(get_text("no_eye_detected_error"))
             st.info(get_text("no_eye_detected_advice"))
         else:
             st.success(f"✅ **{label}** ")
-    else: # Eye condition prediction
+    else:
         if label == "Uncertain":
             st.warning(get_text("uncertain_diagnosis_warning"))
             st.write(f"{get_text('confidence_label')} {confidence * 100:.2f}%")
@@ -271,12 +257,10 @@ def display_prediction_result(label, confidence, is_eye_detection=False):
             st.success(get_text("healthy_success"))
             st.write(f"{get_text('confidence_label')} {confidence * 100:.2f}%")
             st.info(get_text("healthy_advice"))
-        else: # Pinguecula, Pterygium stages, or Red Eye
+        else:
             st.warning(get_text("potential_condition_warning").format(label))
             st.write(f"{get_text('confidence_label')} {confidence * 100:.2f}%")
             st.info(get_text("professional_advice_needed"))
-
-            # Add specific advice based on the detected condition
             if label == "Pinguecula":
                 st.markdown(get_text("pinguecula_advice"))
             elif label == "Pterygium Stage 1 (Trace-Mild)":
@@ -289,48 +273,33 @@ def display_prediction_result(label, confidence, is_eye_detection=False):
                 st.markdown(get_text("red_eye_advice"))
                 st.info(get_text("red_eye_consult_doctor"))
 
-# --- Streamlit UI ---
 with st.sidebar:
     st.title(get_text("sidebar_settings_title"))
-    language_options = {
-        "en": "English",
-        "th": "ภาษาไทย"
-    }
+    language_options = {"en": "English", "th": "ภาษาไทย"}
     selected_lang_key = st.selectbox(
         get_text("language_selector_label"),
         options=list(language_options.keys()),
         format_func=lambda x: language_options[x],
         index=list(language_options.keys()).index(st.session_state.language)
     )
-
     if selected_lang_key != st.session_state.language:
         st.session_state.language = selected_lang_key
         st.rerun()
 
-st.markdown(
-    f"""
+st.markdown(f"""
     <div style="text-align: center; margin-bottom: 20px;">
         <h1>{get_text("app_header")}</h1>
-         <p>{get_text("app_subheader")}</p>
+        <p>{get_text("app_subheader")}</p>
     </div>
-    """,
-    unsafe_allow_html=True
-)
-
+    """, unsafe_allow_html=True)
 st.markdown("---")
-st.markdown(
-    f"""
-    **{get_text("welcome_title")}** {get_text("welcome_message")}
-    """
-)
+st.markdown(f"**{get_text('welcome_title')}** {get_text('welcome_message')}")
 with st.expander(f"**{get_text('how_to_use_title')}**"):
-    st.markdown(
-        f"""
-        1.  **{get_text("step1_title")}** {get_text("step1_desc")}
-        2.  **{get_text("step2_title")}** {get_text("step2_desc")}
-        3.  **{get_text("step3_title")}** {get_text("step3_desc")}
-        """
-    )
+    st.markdown(f"""
+        1.  **{get_text('step1_title')}** {get_text('step1_desc')}
+        2.  **{get_text('step2_title')}** {get_text('step2_desc')}
+        3.  **{get_text('step3_title')}** {get_text('step3_desc')}
+        """)
 st.markdown("---")
 st.markdown(f"**{get_text('disclaimer_title')}** {get_text('disclaimer_text')}")
 st.markdown("---")
@@ -346,28 +315,19 @@ def handle_image_input(uploaded_bytes, method_name, cropper_key):
         st.session_state.img_for_prediction = None
         st.session_state.current_input_method = method_name
         st.rerun()
-
-    elif uploaded_bytes is None and st.session_state.current_input_method == method_name:
-        if st.session_state.img_raw_bytes is not None:
-            st.session_state.img_raw_bytes = None
-            st.session_state.img_for_prediction = None
-            st.session_state.current_input_method = "none"
-            st.rerun()
+    elif uploaded_bytes is None and st.session_state.current_input_method == method_name and st.session_state.img_raw_bytes:
+        st.session_state.img_raw_bytes = None
+        st.session_state.img_for_prediction = None
+        st.session_state.current_input_method = "none"
+        st.rerun()
 
     if st.session_state.current_input_method == method_name and st.session_state.img_raw_bytes:
         img_np_decoded = cv2.imdecode(np.frombuffer(st.session_state.img_raw_bytes, np.uint8), cv2.IMREAD_COLOR)
         img_pil = Image.fromarray(cv2.cvtColor(img_np_decoded, cv2.COLOR_BGR2RGB))
-
         st.markdown(f"### {get_text('crop_step_title')}")
         st.info(get_text("crop_step_info"))
-        cropped_img = st_cropper(
-            img_pil,
-            aspect_ratio=(320, 280),
-            box_color='#FF4B4B',
-            key=cropper_key
-        )
+        cropped_img = st_cropper(img_pil, aspect_ratio=(320, 280), box_color='#FF4B4B', key=cropper_key)
         if cropped_img:
-            # Convert PIL image directly to numpy array for processing
             st.session_state.img_for_prediction = np.array(cropped_img)
             st.markdown("---")
             st.image(cropped_img, caption=get_text("cropped_image_caption"), use_container_width=True)
@@ -378,22 +338,13 @@ def handle_image_input(uploaded_bytes, method_name, cropper_key):
 with tab1:
     st.markdown(f"### {get_text('upload_section_title')}")
     st.markdown(get_text("upload_section_desc"))
-    uploaded_file = st.file_uploader(
-        get_text("uploader_label"),
-        type=["jpg", "jpeg", "png"],
-        help=get_text("uploader_help"),
-        key="uploader_widget"
-    )
+    uploaded_file = st.file_uploader(get_text("uploader_label"), type=["jpg", "jpeg", "png"], help=get_text("uploader_help"), key="uploader_widget")
     handle_image_input(uploaded_file.getvalue() if uploaded_file else None, "upload", "uploaded_crop")
 
 with tab2:
     st.markdown(f"### {get_text('camera_section_title')}")
     st.markdown(get_text("camera_section_desc"))
-    camera_input = st.camera_input(
-        get_text("camera_label"),
-        help=get_text("camera_help"),
-        key="camera_widget"
-    )
+    camera_input = st.camera_input(get_text("camera_label"), help=get_text("camera_help"), key="camera_widget")
     handle_image_input(camera_input.getvalue() if camera_input else None, "camera", "camera_crop")
 
 st.divider()
@@ -405,21 +356,6 @@ if st.session_state.img_for_prediction is not None:
         st.subheader(get_text("analysis_results_header"))
         with st.spinner(get_text("analyzing_image")):
             col1, col2 = st.columns(2)
-
             with col1:
                 st.markdown(f"#### {get_text('eye_detection_result_title')}")
-                eye_label, eye_confidence = predict_eye_detection(st.session_state.img_for_prediction)
-                display_prediction_result(eye_label, eye_confidence, is_eye_detection=True)
-
-            if "No Eye Detected" in eye_label and eye_confidence > CONFIDENCE_THRESHOLD:
-                col2.markdown(f"#### {get_text('eye_condition_analysis_title')}")
-                col2.warning(get_text("cannot_analyze_condition"))
-            else:
-                with col2:
-                    st.markdown(f"#### {get_text('eye_condition_analysis_title')}")
-                    condition_label, condition_confidence = predict_eye_condition(st.session_state.img_for_prediction)
-                    display_prediction_result(condition_label, condition_confidence)
-else:
-    st.info(get_text("initial_message"))
-
-st.divider()
+                eye_label, eye_confidence = predict_eye_detection(st.session_state.
