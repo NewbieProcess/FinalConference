@@ -215,21 +215,21 @@ first_model = load_first_model()
 sec_model = load_sec_model()
 
 def preprocess_image(image_np, target_size=(320, 280)):
-    # Convert from RGB (PIL format) to BGR (OpenCV format)
-    image_bgr = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
-
     # Check if the image is Grayscale (1 channel) and convert it to BGR (3 channels)
-    if len(image_bgr.shape) == 2 or (len(image_bgr.shape) == 3 and image_bgr.shape[2] == 1):
-        image_bgr = cv2.cvtColor(image_bgr, cv2.COLOR_GRAY2BGR)
-    elif len(image_bgr.shape) == 3 and image_bgr.shape[2] == 4:  # Handle PNG with alpha channel
-        image_bgr = cv2.cvtColor(image_bgr, cv2.COLOR_BGRA2BGR)
+    if len(image_np.shape) == 2 or (len(image_np.shape) == 3 and image_np.shape[2] == 1):
+        image_np = cv2.cvtColor(image_np, cv2.COLOR_GRAY2BGR)
+    elif len(image_np.shape) == 3 and image_np.shape[2] == 4: # Handle PNG with alpha channel
+        image_np = cv2.cvtColor(image_np, cv2.COLOR_BGRA2BGR)
         
-    image_resized = cv2.resize(image_bgr, target_size)
+    image_resized = cv2.resize(image_np, target_size)
     image_array = np.expand_dims(image_resized.astype("float32"), axis=0)
     return image_array
 
-
 def predict_eye_detection(image_np):
+    # Convert PIL Image (RGB) to OpenCV format (BGR) before processing
+    if isinstance(image_np, Image.Image):
+        image_np = cv2.cvtColor(np.array(image_np), cv2.COLOR_RGB2BGR)
+        
     processed_image = preprocess_image(image_np)
     prediction = first_model.predict(processed_image)[0]
     predicted_class_index = np.argmax(prediction)
@@ -237,6 +237,10 @@ def predict_eye_detection(image_np):
     return FIRST_CLASS_NAMES[predicted_class_index], confidence
 
 def predict_eye_condition(image_np):
+    # Convert PIL Image (RGB) to OpenCV format (BGR) before processing
+    if isinstance(image_np, Image.Image):
+        image_np = cv2.cvtColor(np.array(image_np), cv2.COLOR_RGB2BGR)
+
     processed_image = preprocess_image(image_np)
     prediction = sec_model.predict(processed_image)[0]
     top_2 = np.sort(prediction)[-2:]
@@ -333,14 +337,11 @@ def handle_image_input(uploaded_bytes, method_name, cropper_key):
         img_pil = Image.fromarray(cv2.cvtColor(img_np_decoded, cv2.COLOR_BGR2RGB))
         st.markdown(f"### {get_text('crop_step_title')}")
         st.info(get_text("crop_step_info"))
-        cropped_img = st_cropper(img_pil, aspect_ratio=(320, 280), box_color='#FF4B4B', key=cropper_key)
-        if cropped_img:
-            # Add a check to convert to RGB if it's not already
-            if cropped_img.mode != 'RGB':
-                cropped_img = cropped_img.convert('RGB')
-            st.session_state.img_for_prediction = np.array(cropped_img)
+        cropped_img_pil = st_cropper(img_pil, aspect_ratio=(320, 280), box_color='#FF4B4B', key=cropper_key)
+        if cropped_img_pil:
+            st.session_state.img_for_prediction = cropped_img_pil
             st.markdown("---")
-            st.image(cropped_img, caption=get_text("cropped_image_caption"), use_container_width=True)
+            st.image(cropped_img_pil, caption=get_text("cropped_image_caption"), use_container_width=True)
             st.markdown("---")
         else:
             st.session_state.img_for_prediction = None
