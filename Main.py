@@ -358,4 +358,17 @@ if st.session_state.img_for_prediction is not None:
             col1, col2 = st.columns(2)
             with col1:
                 st.markdown(f"#### {get_text('eye_detection_result_title')}")
-                eye_label, eye_confidence = predict_eye_detection(st.session_state.
+                eye_label, eye_confidence = predict_eye_detection(st.session_state.img_for_prediction)
+                display_prediction_result(eye_label, eye_confidence, is_eye_detection=True)
+            if "No Eye Detected" in eye_label and eye_confidence > CONFIDENCE_THRESHOLD:
+                col2.markdown(f"#### {get_text('eye_condition_analysis_title')}")
+                col2.warning(get_text("cannot_analyze_condition"))
+            else:
+                with col2:
+                    st.markdown(f"#### {get_text('eye_condition_analysis_title')}")
+                    condition_label, condition_confidence = predict_eye_condition(st.session_state.img_for_prediction)
+                    display_prediction_result(condition_label, condition_confidence)
+else:
+    st.info(get_text("initial_message"))
+
+st.divider()
