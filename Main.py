@@ -2,6 +2,7 @@ import streamlit as st
 import numpy as np
 import cv2
 import tensorflow as tf
+from tensorflow.keras.applications import efficientnet_v2
 from tensorflow.keras.models import load_model
 from streamlit_cropper import st_cropper
 from PIL import Image
