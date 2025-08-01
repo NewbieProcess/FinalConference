@@ -5,7 +5,7 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 from streamlit_cropper import st_cropper
 from PIL import Image
-
+import os
 # --- Constants ---
 FIRST_MODEL_PATH = "EyesDetect.keras"
 FIRST_CLASS_NAMES = ["Eye Detected", "No Eye Detected"]
