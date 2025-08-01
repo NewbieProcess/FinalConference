@@ -12,9 +12,9 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 tf.get_logger().setLevel('ERROR')
 
 # --- Constants ---
-FIRST_MODEL_PATH = "EyeDetect.keras"
+FIRST_MODEL_PATH = "EyesDetect.keras"
 FIRST_CLASS_NAMES = ["Eye Detected", "No Eye Detected"]
-SEC_MODEL_PATH = "EyeAnalysis.keras"
+SEC_MODEL_PATH = "44A.FinalJingJing_320x280.keras"
 SEC_CLASS_NAMES = ["Healthy", "Pinguecula", "Pterygium Stage 1 (Trace-Mild)", "Pterygium Stage 2 (Moderate-Severe)", "Red Eye(Conjunctivitis)"]
 
 # Thresholds
@@ -210,7 +210,7 @@ def load_sec_model():
 first_model = load_first_model()
 sec_model = load_sec_model()
 
-def preprocess_image(image_np, target_size=(320, 280)):
+def preprocess_image(image_np, target_size=(280, 320)):
     # Explicitly convert to BGR first if not already
     if len(image_np.shape) == 3 and image_np.shape[2] == 3 and (image_np[0,0,0] > 1 or image_np[0,0,1] > 1 or image_np[0,0,2] > 1):
         image_bgr = image_np
