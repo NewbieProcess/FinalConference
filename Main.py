@@ -7,9 +7,9 @@ from streamlit_cropper import st_cropper
 from PIL import Image
 
 # --- Constants ---
-FIRST_MODEL_PATH = "EyeDetect.keras"
+FIRST_MODEL_PATH = "1EyeDetect.keras"
 FIRST_CLASS_NAMES = ["Eye Detected", "No Eye Detected"]
-SEC_MODEL_PATH = "EyeAnalysis.keras" # Consider renaming your model file to reflect the new class
+SEC_MODEL_PATH = "1EyeAnalysis.keras" # Consider renaming your model file to reflect the new class
 SEC_CLASS_NAMES = ["Healthy", "Pinguecula", "Pterygium Stage 1 (Trace-Mild)", "Pterygium Stage 2 (Moderate-Severe)", "Red Eye(Conjunctivitis)"]
 
 # Thresholds
