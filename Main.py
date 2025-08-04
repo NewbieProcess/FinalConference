@@ -6,6 +6,8 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 from streamlit_cropper import st_cropper
 from PIL import Image
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '-999'
 # --- Constants ---
 FIRST_MODEL_PATH = "EyeDetect.keras"
 FIRST_CLASS_NAMES = ["Eye Detected", "No Eye Detected"]
