@@ -190,7 +190,7 @@ if 'current_input_method' not in st.session_state:
 def load_first_model():
     with st.spinner(get_text("loading_first_model")):
         try:
-            model = load_model(FIRST_MODEL_PATH)
+            model = tf.keras.models.load_model(FIRST_MODEL_PATH)
             return model
         except Exception as e:
             st.error(get_text("failed_to_load_first_model", e, FIRST_MODEL_PATH))
@@ -201,7 +201,7 @@ def load_sec_model():
     with st.spinner(get_text("loading_sec_model")):
         try:
             # Ensure the path matches your retrained model
-            model = load_model(SEC_MODEL_PATH)
+            model = tf.keras.models.load_model(SEC_MODEL_PATH))
             return model
         except Exception as e:
             st.error(get_text("failed_to_load_sec_model", e, SEC_MODEL_PATH))
