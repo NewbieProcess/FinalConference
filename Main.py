@@ -145,6 +145,7 @@ TEXTS = {
         "uncertain_advice": "AI ยังไม่มั่นใจในผลนี้ครับ",
         "healthy_success": "🎉 **ตาดูปกติดีครับ!**",
         "healthy_advice": "ดีมากครับ! ดวงตาของคุณดูปกติดี แต่ควรไปตรวจตากับแพทย์เป็นประจำด้วยนะครับ",
+        "healthy_advice": "Great news! Your eye appears healthy based on AI analysis. Remember to still consult a healthcare professional for a complete eye examination.",
         "potential_condition_warning": "🚨 **พบภาวะที่อาจเป็น: {} ครับ**",
         "professional_advice_needed": "นี่เป็นแค่การวิเคราะห์เบื้องต้นจากAIเท่านั้น ควรไปพบแพทย์เพื่อวินิจฉัยและรักษาอย่างถูกต้องครับ",
         "pinguecula_advice": "**คำแนะนำเพิ่มเติมสำหรับต้อลมครับ:** ถ้าตาเริ่มระคายเคือง อาจใช้ยาหยอดตาช่วยบรรเทาอาการได้ แต่ยาหยอดตาไม่ได้รักษาต้อลมให้หายไปโดยตรงนะครับ ช่วยลดอาการอักเสบและระคายเคือง และป้องกันไม่ให้ต้อลมลุกลามครับ",
@@ -270,28 +271,26 @@ if 'current_input_method' not in st.session_state:
 
 # --- Load Models (Cached) ---
 @st.cache_resource
-def load_first_model(model_path, model_name):
+def load_models_from_path():
     with st.spinner(get_text("loading_first_model")):
+        first_model_path = "/app/EyeDetect.keras"
         try:
-            model = load_model(model_path)
-            return model
+            first_model = load_model(first_model_path)
         except Exception as e:
-            st.error(get_text("failed_to_load_first_model", str(e)))
+            st.error(f"Failed to load first model from {first_model_path}. Error: {str(e)}")
             st.stop()
 
-@st.cache_resource
-def load_sec_model(model_path, model_name):
     with st.spinner(get_text("loading_sec_model")):
+        sec_model_path = "/app/EyeAnalysis.keras"
         try:
-            model = load_model(model_path)
-            return model
+            sec_model = load_model(sec_model_path)
         except Exception as e:
-            st.error(get_text("failed_to_load_sec_model", str(e)))
+            st.error(f"Failed to load second model from {sec_model_path}. Error: {str(e)}")
             st.stop()
 
-first_model = load_model(FIRST_MODEL_PATH)
-sec_model = load_model(SEC_MODEL_PATH)
+    return first_model, sec_model
 
+first_model, sec_model = load_models_from_path()
 st.success(f"✅")
 
 # --- Preprocessing ---
@@ -300,32 +299,20 @@ def preprocess_image(image_np):
     Fixed preprocessing function to match model input shape (280, 320, 3)
     Resizes, converts to 3 channels, and prepares image for model input.
     """
-    # First, ensure the image is a valid numpy array
     if not isinstance(image_np, np.ndarray):
         st.error("Input image is not a valid numpy array.")
         return None
 
-    # Debug: แสดง input shape
-    print(f"Input image shape: {image_np.shape}")
-
     # ตรวจสอบและแปลงให้เป็น RGB 3 channels
     if image_np.ndim == 2:  # Grayscale image (H, W)
-        # แปลง grayscale เป็น RGB โดยตรง
         image_rgb = cv2.cvtColor(image_np, cv2.COLOR_GRAY2RGB)
-        print("Converted grayscale (H, W) to RGB")
     elif image_np.ndim == 3:
         if image_np.shape[2] == 1:  # Grayscale image (H, W, 1)
-            # ขยาย 1 channel เป็น 3 channels
             image_rgb = np.repeat(image_np, 3, axis=2)
-            print("Converted grayscale (H, W, 1) to RGB")
         elif image_np.shape[2] == 3:  # RGB หรือ BGR image (H, W, 3)
-            # ถ้ามาจาก PIL หรือ numpy array จาก streamlit จะเป็น RGB แล้ว
             image_rgb = image_np.copy()
-            print("Using RGB image as-is")
         elif image_np.shape[2] == 4:  # RGBA image (H, W, 4)
-            # แปลง RGBA เป็น RGB โดยตัด alpha channel
             image_rgb = image_np[:, :, :3]
-            print("Converted RGBA to RGB")
         else:
             st.error(f"Unsupported image format: shape {image_np.shape}")
             return None
@@ -333,52 +320,22 @@ def preprocess_image(image_np):
         st.error(f"Unsupported image dimensions: {image_np.ndim}D")
         return None
 
-    print(f"After channel conversion: {image_rgb.shape}")
-
     # Resize ให้ตรงกับที่โมเดลต้องการ: height=280, width=320
     # cv2.resize ใช้ (width, height) ดังนั้นต้องสลับ
     image_resized = cv2.resize(image_rgb, (TARGET_SIZE[1], TARGET_SIZE[0]))
-    
-    # ตรวจสอบ shape หลัง resize
-    expected_shape = (TARGET_SIZE[0], TARGET_SIZE[1], 3)
-    if image_resized.shape != expected_shape:
-        st.error(f"Shape mismatch after resize. Expected: {expected_shape}, Got: {image_resized.shape}")
-        return None
-    
-    print(f"After resize: {image_resized.shape}")
     
     # Normalize และเพิ่ม batch dimension
     image_normalized = image_resized.astype("float32") / 255.0
     image_array = np.expand_dims(image_normalized, axis=0)
     
-    print(f"Final preprocessed shape: {image_array.shape}")
     return image_array
-
-# ฟังก์ชัน helper สำหรับ debug
-def debug_image_shape(image_np, step_name=""):
-    """Debug function to check image shape at different steps"""
-    if isinstance(image_np, np.ndarray):
-        print(f"Debug {step_name}: Shape = {image_np.shape}, dtype = {image_np.dtype}")
-        if len(image_np.shape) == 4:  # batch dimension
-            print(f"  Batch size: {image_np.shape[0]}")
-            print(f"  Height: {image_np.shape[1]}")
-            print(f"  Width: {image_np.shape[2]}")
-            print(f"  Channels: {image_np.shape[3]}")
-    else:
-        print(f"Debug {step_name}: Not a numpy array, type = {type(image_np)}")
-
 
 # แก้ไข prediction functions ให้มี debug
 def predict_eye_detection(image_np):
     """Fixed prediction with proper preprocessing and debug info"""
-    debug_image_shape(image_np, "Input to eye detection")
-    
-    # ใช้ preprocess_image ที่ปรับขนาดตาม TARGET_SIZE แล้ว
     processed_image = preprocess_image(image_np)
     if processed_image is None:
         return "No Eye Detected", 0.0
-
-    debug_image_shape(processed_image, "Processed for eye detection")
     
     try:
         prediction = first_model.predict(processed_image)[0]
@@ -391,14 +348,9 @@ def predict_eye_detection(image_np):
 
 def predict_eye_condition(image_np):
     """Fixed prediction with proper preprocessing and debug info"""
-    debug_image_shape(image_np, "Input to condition analysis")
-    
-    # ใช้ preprocess_image ที่ปรับขนาดตาม TARGET_SIZE แล้ว
     processed_image = preprocess_image(image_np)
     if processed_image is None:
         return "Uncertain", 0.0
-
-    debug_image_shape(processed_image, "Processed for condition analysis")
     
     try:
         prediction = sec_model.predict(processed_image)[0]
@@ -413,7 +365,6 @@ def predict_eye_condition(image_np):
     except Exception as e:
         st.error(f"Error in condition analysis prediction: {e}")
         return "Error", 0.0
-
 
 # แก้ไข handle_image_input function
 def handle_image_input(uploaded_bytes, method_name, cropper_key):
@@ -441,8 +392,6 @@ def handle_image_input(uploaded_bytes, method_name, cropper_key):
             st.session_state.img_raw_bytes = None
             return
 
-        debug_image_shape(img_np_decoded, "Decoded image")
-
         # แปลง BGR เป็น RGB สำหรับ PIL
         img_rgb_for_pil = cv2.cvtColor(img_np_decoded, cv2.COLOR_BGR2RGB)
         img_pil = Image.fromarray(img_rgb_for_pil)
@@ -461,14 +410,11 @@ def handle_image_input(uploaded_bytes, method_name, cropper_key):
         if cropped_img:
             # แปลง PIL เป็น numpy (จะเป็น RGB แล้ว)
             img_np_cropped = np.array(cropped_img)
-            debug_image_shape(img_np_cropped, "Cropped image")
             
             # Preprocess สำหรับ prediction
-            # ไม่ต้องกำหนด target_size อีกครั้ง เพราะฟังก์ชัน preprocess_image ใช้ค่าคงที่แล้ว
             preprocessed_for_prediction = preprocess_image(img_np_cropped)
             if preprocessed_for_prediction is not None:
                 st.session_state.img_for_prediction = preprocessed_for_prediction
-                debug_image_shape(preprocessed_for_prediction, "Final preprocessed")
             
             st.markdown("---")
             st.image(cropped_img, caption=get_text("cropped_image_caption"), use_container_width=True)
@@ -601,11 +547,9 @@ if st.session_state.img_for_prediction is not None:
             col1, col2 = st.columns(2)
             with col1:
                 st.markdown(f"#### {get_text('eye_detection_result_title')}")
-                # ต้องส่ง numpy array ที่ยังไม่ได้ pre-process เข้าไป
                 eye_label, eye_confidence = predict_eye_detection(np.array(st.session_state.img_for_prediction).squeeze(0))
                 display_prediction_result(eye_label, eye_confidence, is_eye_detection=True)
             
-            # This logic needs to be outside the col1 with block to allow for col2 to display
             if "No Eye Detected" in eye_label and eye_confidence > CONFIDENCE_THRESHOLD:
                 with col2:
                     st.markdown(f"#### {get_text('eye_condition_analysis_title')}")
@@ -613,7 +557,6 @@ if st.session_state.img_for_prediction is not None:
             else:
                 with col2:
                     st.markdown(f"#### {get_text('eye_condition_analysis_title')}")
-                    # ต้องส่ง numpy array ที่ยังไม่ได้ pre-process เข้าไป
                     condition_label, condition_confidence = predict_eye_condition(np.array(st.session_state.img_for_prediction).squeeze(0))
                     display_prediction_result(condition_label, condition_confidence)
 else:
