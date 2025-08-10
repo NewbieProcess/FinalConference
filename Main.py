@@ -273,7 +273,7 @@ if 'current_input_method' not in st.session_state:
 @st.cache_resource
 def load_models_from_path():
     with st.spinner(get_text("loading_first_model")):
-        first_model_path = "/app/EyeDetect.keras"
+        first_model_path = "EyeDetect.keras"
         try:
             first_model = load_model(first_model_path)
         except Exception as e:
@@ -281,7 +281,7 @@ def load_models_from_path():
             st.stop()
 
     with st.spinner(get_text("loading_sec_model")):
-        sec_model_path = "/app/EyeAnalysis.keras"
+        sec_model_path = "EyeAnalysis.keras"
         try:
             sec_model = load_model(sec_model_path)
         except Exception as e:
