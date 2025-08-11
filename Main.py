@@ -284,10 +284,12 @@ sec_model = load_sec_model()
 
 # --- Preprocessing ---
 def preprocess_image(image_np, target_size=(320, 280)):
-    """Resizes, converts to RGB, and expands dimensions for model input."""
-    image_resized = cv2.resize(image_np, target_size)
-    image_rgb = cv2.cvtColor(image_resized, cv2.COLOR_BGR2RGB)
-    image_array = np.expand_dims(image_rgb.astype("float32"), axis=0)
+    if image_pil.mode != 'RGB':
+        image_pil = image_pil.convert('RGB')
+    image_resized = image_pil.resize(target_size)
+    image_array = np.array(image_resized).astype("float32")
+    image_array = np.expand_dims(image_array, axis=0)
+    
     return image_array
 
 # --- Prediction Logic ---
@@ -405,46 +407,40 @@ tab1, tab2= st.tabs([get_text("tab_upload_image"), get_text("tab_use_camera")])
 
 # --- Function to handle image processing and cropping ---
 def handle_image_input(uploaded_bytes, method_name, cropper_key):
-    # Case 1: A new raw image is provided OR the input method has switched
     if (uploaded_bytes is not None and st.session_state.img_raw_bytes != uploaded_bytes) or \
        (st.session_state.current_input_method != method_name and uploaded_bytes is not None):
         st.session_state.img_raw_bytes = uploaded_bytes
-        st.session_state.img_for_prediction = None  # Clear previously cropped image
+        st.session_state.img_for_prediction = None
         st.session_state.current_input_method = method_name
-        st.rerun() # Trigger a rerun to clear old display elements and re-render with new raw image for cropper
+        st.rerun()
 
-    # Case 2: The 'x' button was clicked, or camera input was cleared (uploaded_bytes is None)
-    # and the current method matches. This means the user explicitly cleared the input.
     elif uploaded_bytes is None and st.session_state.current_input_method == method_name:
-        if st.session_state.img_raw_bytes is not None: # Only clear if there was an image to begin with
+        if st.session_state.img_raw_bytes is not None:
             st.session_state.img_raw_bytes = None
             st.session_state.img_for_prediction = None
-            st.session_state.current_input_method = "none" # Reset active method
-            st.rerun() # Trigger a rerun to clear the display
+            st.session_state.current_input_method = "none"
+            st.rerun()
 
-    # If the current input method is active and we have raw image bytes
     if st.session_state.current_input_method == method_name and st.session_state.img_raw_bytes:
         # Decode bytes to numpy array using OpenCV
         img_np_decoded = cv2.imdecode(np.frombuffer(st.session_state.img_raw_bytes, np.uint8), cv2.IMREAD_COLOR)
-        # Convert OpenCV's BGR to PIL's RGB
-        img_pil = Image.fromarray(cv2.cvtColor(img_np_decoded, cv2.COLOR_BGR2RGB))
+        img_rgb = cv2.cvtColor(img_np_decoded, cv2.COLOR_BGR2RGB)
+        img_pil = Image.fromarray(img_rgb)
 
-        st.markdown("### ✂️ Step 2: Crop Your Image")
-        st.info("**Drag the box** to perfectly frame your eye. A precise crop leads to more accurate analysis.")
-        cropped_img = st_cropper(
+        st.markdown(f"### {get_text('crop_step_title')}")
+        st.info(get_text("crop_step_info"))
+        cropped_img_pil = st_cropper(
             img_pil,
             aspect_ratio=(320, 280),
-            box_color='#FF4B4B', # A distinct color for the crop box
+            box_color='#FF4B4B',
             key=cropper_key
         )
-        if cropped_img:
-            # Update the image for prediction ONLY if the cropper provides a valid output
-            st.session_state.img_for_prediction = cv2.cvtColor(np.array(cropped_img), cv2.COLOR_BGR2RGB) # Ensure RGB for further processing
+        if cropped_img_pil:
+            st.session_state.img_for_prediction = cropped_img_pil
             st.markdown("---")
-            st.image(cropped_img, caption="✅ Cropped Image Ready for Analysis", use_container_width=True)
+            st.image(cropped_img_pil, caption=get_text("cropped_image_caption"), use_container_width=True)
             st.markdown("---")
         else:
-            # If cropped_img is None (e.g., first render of cropper after new upload), ensure img_for_prediction is cleared
             st.session_state.img_for_prediction = None
 
 
