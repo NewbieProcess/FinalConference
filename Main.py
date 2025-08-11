@@ -286,11 +286,11 @@ sec_model = load_sec_model()
 def preprocess_image(image_np, target_size=(280, 320)):
     if len(image_np.shape) == 2 or image_np.shape[2] == 1:
         image_np = cv2.cvtColor(image_np, cv2.COLOR_GRAY2RGB)
-    image_resized = cv2.resize(image_np, target_size)
+    image_resized = cv2.resize(image_np, (target_size[1], target_size[0]))  # (width, height)
     image_resized = image_resized.astype("float32") / 255.0
     image_resized = np.expand_dims(image_resized, axis=0)
+    assert image_resized.shape == (1, 280, 320, 3), f"Shape mismatch: {image_resized.shape}"
     return image_resized
-
 # --- Prediction Logic ---
 def predict_eye_detection(image_np):
     processed_image = preprocess_image(image_np)
