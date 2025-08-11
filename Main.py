@@ -5,25 +5,16 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 from streamlit_cropper import st_cropper
 from PIL import Image
-import os
-
-# --- Model Paths ---
-# Use absolute paths for a consistent environment like Docker/Hugging Face Spaces
-FIRST_MODEL_PATH = "EyeDetect.keras"
-SEC_MODEL_PATH = "EyeAnalysis.keras"
 
 # --- Constants ---
+FIRST_MODEL_PATH = "EyeDetect.keras"
 FIRST_CLASS_NAMES = ["Eye Detected", "No Eye Detected"]
+SEC_MODEL_PATH = "EyeAnalysis.keras"
 SEC_CLASS_NAMES = ["Healthy", "Pinguecula", "Pterygium Stage 1 (Trace-Mild)", "Pterygium Stage 2 (Moderate-Severe)", "Red Eye(Conjunctivitis)"]
+
+# Thresholds
 CONFIDENCE_THRESHOLD = 0.60
 MARGIN_THRESHOLD = 0.10
-
-# กำหนดขนาดรูปภาพที่โมเดลต้องการอย่างชัดเจน
-# Keras/TensorFlow Input Shape: (None, height, width, channels)
-# ดังนั้น TARGET_SIZE = (height, width)
-TARGET_SIZE = (280, 320)
-# st_cropper ใช้ aspect_ratio เป็น (width, height)
-CROPPER_ASPECT_RATIO = (TARGET_SIZE[1], TARGET_SIZE[0])
 
 # --- Translation Data ---
 TEXTS = {
@@ -100,71 +91,69 @@ TEXTS = {
         "language_selector_label": "Select Language",
         "sidebar_settings_title": "Settings"
     },
-    "th": {
-        "page_title": "เครื่องมือตรวจสภาพดวงตา",
-        "app_header": "OcuScanAI",
-        "app_subheader": "ผู้ช่วยตรวจสุขภาพตาด้วยตัวเอง (เช็คตาปกติ ต้อลม ต้อเนื้อ ตาแดง).",
-        "welcome_title": "ยินดีต้อนรับครับ!",
-        "welcome_message": "ให้ AI ช่วยตรวจเบื้องต้นว่าตาของคุณเป็นต้อลม ต้อเนื้อ (ตั้งแต่ระยะเริ่มต้นจนถึงระยะรุนแรง) ตาแดง หรือแค่เช็คว่าตาดูปกติดีอยู่ไหมแบบรวดเร็วและง่ายครับ",
-        "how_to_use_title": "วิธีการใช้งาน",
-        "step1_title": "📸 ขั้นตอนที่ 1: ใส่รูปภาพ",
-        "step1_desc": "อัปโหลดรูปถ่ายดวงตาที่ชัดหรือจะถ่ายด้วยกล้อง (แต่ต้องเห็นดวงตาทั้งดวงแบบชัดๆนะ 👁️) เพื่อให้ AI วิเคราะห์ได้แม่นยำขึ้น",
-        "step2_title": "✂️ ขั้นตอนที่ 2: ครอบตัดรูป",
-        "step2_desc": "ลากกรอบครอบตัดให้พอดีกับดวงตา",
-        "step3_title": "🔬 ขั้นตอนที่ 3: ดูผลวิเคราะห์",
-        "step3_desc": "กดปุ่ม 'วิเคราะห์' เพื่อดูผลการวินิจฉัยเบื้องต้นจาก AI ครับ",
-        "disclaimer_title": "ข้อควรทราบ:",
-        "disclaimer_text": "OcuScanAI เป็นแค่เครื่องมือช่วยดูข้อมูลเบื้องต้นเท่านั้น ไม่ใช่คำแนะนำหรือการวินิจฉัยจากแพทย์ หากมีอาการหรือข้อสงสัย ควรไปพบจักษุแพทย์เพื่อรับคำแนะนำที่ถูกต้องครับ",
-        "start_scan_subheader": "📸 เริ่มสแกนดวงตาของคุณได้เลยครับ",
-        "choose_interaction": "เลือกวิธีใช้แอปได้เลยครับ:",
-        "tip_info": "💡 **เคล็ดลับ:** ใช้รูปถ่ายที่มีแสงสว่างเพียงพอ และเห็นดวงตาชัด ๆ เพื่อผลลัพธ์ที่แม่นยำที่สุดครับ!",
-        "tab_upload_image": "🖼️ อัปโหลดรูป",
-        "tab_use_camera": "📸 ใช้กล้อง",
-        "upload_section_title": "🖼️ อัปโหลดรูปจากเครื่องของคุณครับ",
-        "upload_section_desc": "เลือกอัปโหลดรูปดวงตาจากคอมพิวเตอร์หรือมือถือรองรับเฉพาะไฟล์ **JPG, JPEG, PNG**",
-        "uploader_label": "ลากรูปมาวางหรือคลิกเพื่อเลือกไฟล์",
-        "uploader_help": "อัปโหลดรูปถ่ายดวงตาที่ชัดเจนเพื่อให้ AI วิเคราะห์ครับ",
-        "camera_section_title": "📸 อัพรูปจากกล้อง",
-        "camera_section_desc": "ถ่ายรูปดวงตาควรตรวจสอบให้มีแสงสว่างพอเหมาะเพื่อภาพที่ชัดเจนครับ",
-        "camera_label": "ถ่ายรูปดวงตาของคุณครับ",
-        "camera_help": "ถ่ายรูปดวงตาด้วยกล้องอุปกรณ์ของคุณครับ",
-        "crop_step_title": "✂️ ขั้นตอนที่ 2: ครอบตัดรูปของคุณ",
-        "crop_step_info": "ลากกรอบครอบให้พอดีกับดวงตา",
-        "cropped_image_caption": "✅ รูปที่ครอบตัดพร้อมสำหรับวิเคราะห์",
-        "analyze_step_title": "🔬 ขั้นตอนที่ 3: ผลวิเคราะห์",
-        "analyze_step_info": "เมื่อพอใจกับรูปที่ครอบแล้วสามารถกดปุ่ม 'วิเคราะห์' เพื่อดูผลได้ครับ",
-        "analyze_button": "🚀 วิเคราะห์รูปดวงตา",
-        "analysis_results_header": "📊 ผลวิเคราะห์",
-        "eye_detection_result_title": "ผลตรวจจับรูปดวงตา",
-        "eye_condition_analysis_title": "ผลวิเคราะห์สภาพดวงตาครับ",
-        "no_eye_detected_error": "❌ **ไม่พบดวงตา**",
-        "no_eye_detected_advice": "ตอนนี้ AI ยังตรวจสอบดวงตาของคุณไม่ได้ ลองอัพรูปหรือครอปรูปใหม่อีกทีดูนะครับ",
-        "cannot_analyze_condition": "🚫 ไม่สามารถวิเคราะห์ได้ ไม่พบดวงตาในรูป",
-        "uncertain_diagnosis_warning": "⚠️ **ผลไม่แน่ชัด**",
-        "confidence_label": "ความมั่นใจ:",
-        "uncertain_advice": "AI ยังไม่มั่นใจในผลนี้ครับ",
-        "healthy_success": "🎉 **ตาดูปกติดีครับ!**",
-        "healthy_advice": "ดีมากครับ! ดวงตาของคุณดูปกติดี แต่ควรไปตรวจตากับแพทย์เป็นประจำด้วยนะครับ",
-        "healthy_advice": "Great news! Your eye appears healthy based on AI analysis. Remember to still consult a healthcare professional for a complete eye examination.",
-        "potential_condition_warning": "🚨 **พบภาวะที่อาจเป็น: {} ครับ**",
-        "professional_advice_needed": "นี่เป็นแค่การวิเคราะห์เบื้องต้นจากAIเท่านั้น ควรไปพบแพทย์เพื่อวินิจฉัยและรักษาอย่างถูกต้องครับ",
-        "pinguecula_advice": "**คำแนะนำเพิ่มเติมสำหรับต้อลมครับ:** ถ้าตาเริ่มระคายเคือง อาจใช้ยาหยอดตาช่วยบรรเทาอาการได้ แต่ยาหยอดตาไม่ได้รักษาต้อลมให้หายไปโดยตรงนะครับ ช่วยลดอาการอักเสบและระคายเคือง และป้องกันไม่ให้ต้อลมลุกลามครับ",
-        "pterygium1_advice": "**คำแนะนำสำหรับต้อเนื้อ ระยะที่ 1 (เริ่มต้น) :** ระยะแรกสามารถใช้ยาหยอดตาเพื่อลดตาแดงและระคายเคือง ช่วยลดการอักเสบและชะลอการลุกลามแต่ยาหยอดตาไม่สามารถรักษาต้อเนื้อให้หายได้ ควรไปพบจักษุแพทย์เพื่อตรวจเพิ่มเติม",
-        "pterygium1_consult_doctor": "⚠️ **โปรดพบจักษุแพทย์ครับ:** เพื่อวินิจฉัยและวางแผนรักษาที่เหมาะสม",
-        "pterygium2_advice": "**คำแนะนำสำหรับต้อเนื้อ ระยะที่ 2 (รุนแรง) ครับ:** ต้อเนื้อระยะนี้อาจมีผลต่อการมองเห็นเพราะใกล้เข้าสู้รูม่านตามากๆหรือเข้าสู่รูม่านตาแล้ว ควรไปพบแพทย์โดยเร็วเพื่อประเมินและพิจารณาการรักษา ซึ่งอาจรวมถึงการผ่าตัด",
-        "pterygium2_consult_doctor": "🚨 **โปรดไปพบจักษุแพทย์ด่วนครับ:** เพื่อรับคำวินิจฉัยและรักษา",
-        "red_eye_advice": """**คำแนะนำเพิ่มเติมสำหรับตาแดงครับ:**
-        ตาแดงอาจเกิดได้จากหลายสาเหตุ เช่น การระคายเคือง, ภูมิแพ้, การติดเชื้อ หรือภาวะทางการแพทย์อื่น ๆ แม้ว่ามักจะไม่เป็นอันตราย แต่หากตาแดงมีอาการต่อเนื่องหรือรุนแรง โดยเฉพาะอย่างยิ่งมีอาการปวด, มีขี้ตา, หรือการมองเห็นเปลี่ยนแปลงไป ควรปรึกษาแพทย์""",
-        "red_eye_consult_doctor": "⚠️ **โปรดปรึกษาแพทย์หรือจักษุแพทย์:** เพื่อหาสาเหตุของตาแดงและรับการรักษาที่เหมาะสมครับ",
-        "initial_message": "อัปโหลดหรือถ่ายรูปใน **ขั้นตอนที่ 1** แล้วครอบตัดใน **ขั้นตอนที่ 2** ปุ่มวิเคราะห์จะโผล่มาเมื่อพร้อมใช้งานครับ!",
-        "loading_first_model": "🚀 กำลังโหลดโมเดล AI สำหรับตรวจจับดวงตา...",
-        "loading_sec_model": "🧠 กำลังโหลดโมเดล AI สำหรับวิเคราะห์สภาพตา...",
-        "analyzing_image": "กำลังวิเคราะห์รูปภาพ... กรุณารอสักครู่ครับ",
-        "language_selector_label": "เลือกภาษา",
-        "sidebar_settings_title": "ตั้งค่า"
-    }
+  "th": {
+    "page_title": "เครื่องมือตรวจสภาพดวงตา",
+    "app_header": "OcuScanAI",
+    "app_subheader": "ผู้ช่วยตรวจสุขภาพตาด้วยตัวเอง (เช็คตาปกติ ต้อลม ต้อเนื้อ ตาแดง).",
+    "welcome_title": "ยินดีต้อนรับครับ!",
+    "welcome_message": "ให้ AI ช่วยตรวจเบื้องต้นว่าตาของคุณเป็นต้อลม ต้อเนื้อ (ตั้งแต่ระยะเริ่มต้นจนถึงระยะรุนแรง) ตาแดง หรือแค่เช็คว่าตาดูปกติดีอยู่ไหมแบบรวดเร็วและง่ายครับ",
+    "how_to_use_title": "วิธีการใช้งาน",
+    "step1_title": "📸 ขั้นตอนที่ 1: ใส่รูปภาพ",
+    "step1_desc": "อัปโหลดรูปถ่ายดวงตาที่ชัดหรือจะถ่ายด้วยกล้อง (แต่ต้องเห็นดวงตาทั้งดวงแบบชัดๆนะ 👁️) เพื่อให้ AI วิเคราะห์ได้แม่นยำขึ้น",
+    "step2_title": "✂️ ขั้นตอนที่ 2: ครอบตัดรูป",
+    "step2_desc": "ลากกรอบครอบตัดให้พอดีกับดวงตา",
+    "step3_title": "🔬 ขั้นตอนที่ 3: ดูผลวิเคราะห์",
+    "step3_desc": "กดปุ่ม 'วิเคราะห์' เพื่อดูผลการวินิจฉัยเบื้องต้นจาก AI ครับ",
+    "disclaimer_title": "ข้อควรทราบ:",
+    "disclaimer_text": "OcuScanAI เป็นแค่เครื่องมือช่วยดูข้อมูลเบื้องต้นเท่านั้น ไม่ใช่คำแนะนำหรือการวินิจฉัยจากแพทย์ หากมีอาการหรือข้อสงสัย ควรไปพบจักษุแพทย์เพื่อรับคำแนะนำที่ถูกต้องครับ",
+    "start_scan_subheader": "📸 เริ่มสแกนดวงตาของคุณได้เลยครับ",
+    "choose_interaction": "เลือกวิธีใช้แอปได้เลยครับ:",
+    "tip_info": "💡 **เคล็ดลับ:** ใช้รูปถ่ายที่มีแสงสว่างเพียงพอ และเห็นดวงตาชัด ๆ เพื่อผลลัพธ์ที่แม่นยำที่สุดครับ!",
+    "tab_upload_image": "🖼️ อัปโหลดรูป",
+    "tab_use_camera": "📸 ใช้กล้อง",
+    "upload_section_title": "🖼️ อัปโหลดรูปจากเครื่องของคุณครับ",
+    "upload_section_desc": "เลือกอัปโหลดรูปดวงตาจากคอมพิวเตอร์หรือมือถือรองรับเฉพาะไฟล์ **JPG, JPEG, PNG**",
+    "uploader_label": "ลากรูปมาวางหรือคลิกเพื่อเลือกไฟล์",
+    "uploader_help": "อัปโหลดรูปถ่ายดวงตาที่ชัดเจนเพื่อให้ AI วิเคราะห์ครับ",
+    "camera_section_title": "📸 อัพรูปจากกล้อง",
+    "camera_section_desc": "ถ่ายรูปดวงตาควรตรวจสอบให้มีแสงสว่างพอเหมาะเพื่อภาพที่ชัดเจนครับ",
+    "camera_label": "ถ่ายรูปดวงตาของคุณครับ",
+    "camera_help": "ถ่ายรูปดวงตาด้วยกล้องอุปกรณ์ของคุณครับ",
+    "crop_step_title": "✂️ ขั้นตอนที่ 2: ครอบตัดรูปของคุณ",
+    "crop_step_info": "ลากกรอบครอบให้พอดีกับดวงตา",
+    "cropped_image_caption": "✅ รูปที่ครอบตัดพร้อมสำหรับวิเคราะห์",
+    "analyze_step_title": "🔬 ขั้นตอนที่ 3: ผลวิเคราะห์",
+    "analyze_step_info": "เมื่อพอใจกับรูปที่ครอบแล้วสามารถกดปุ่ม 'วิเคราะห์' เพื่อดูผลได้ครับ",
+    "analyze_button": "🚀 วิเคราะห์รูปดวงตา",
+    "analysis_results_header": "📊 ผลวิเคราะห์",
+    "eye_detection_result_title": "ผลตรวจจับรูปดวงตา",
+    "eye_condition_analysis_title": "ผลวิเคราะห์สภาพดวงตาครับ",
+    "no_eye_detected_error": "❌ **ไม่พบดวงตา**",
+    "no_eye_detected_advice": "ตอนนี้ AI ยังตรวจสอบดวงตาของคุณไม่ได้ ลองอัพรูปหรือครอปรูปใหม่อีกทีดูนะครับ",
+    "cannot_analyze_condition": "🚫 ไม่สามารถวิเคราะห์ได้ ไม่พบดวงตาในรูป",
+    "uncertain_diagnosis_warning": "⚠️ **ผลไม่แน่ชัด**",
+    "confidence_label": "ความมั่นใจ:",
+    "uncertain_advice": "AI ยังไม่มั่นใจในผลนี้ครับ",
+    "healthy_success": "🎉 **ตาดูปกติดีครับ!**",
+    "healthy_advice": "ดีมากครับ! ดวงตาของคุณดูปกติดี แต่ควรไปตรวจตากับแพทย์เป็นประจำด้วยนะครับ",
+    "potential_condition_warning": "🚨 **พบภาวะที่อาจเป็น: {} ครับ**",
+    "professional_advice_needed": "นี่เป็นแค่การวิเคราะห์เบื้องต้นจากAIเท่านั้น ควรไปพบแพทย์เพื่อวินิจฉัยและรักษาอย่างถูกต้องครับ",
+    "pinguecula_advice": "**คำแนะนำเพิ่มเติมสำหรับต้อลมครับ:** ถ้าตาเริ่มระคายเคือง อาจใช้ยาหยอดตาช่วยบรรเทาอาการได้ แต่ยาหยอดตาไม่ได้รักษาต้อลมให้หายไปโดยตรงนะครับ ช่วยลดอาการอักเสบและระคายเคือง และป้องกันไม่ให้ต้อลมลุกลามครับ",
+    "pterygium1_advice": "**คำแนะนำสำหรับต้อเนื้อ ระยะที่ 1 (เริ่มต้น) :** ระยะแรกสามารถใช้ยาหยอดตาเพื่อลดตาแดงและระคายเคือง ช่วยลดการอักเสบและชะลอการลุกลามแต่ยาหยอดตาไม่สามารถรักษาต้อเนื้อให้หายได้ ควรไปพบจักษุแพทย์เพื่อตรวจเพิ่มเติม",
+    "pterygium1_consult_doctor": "⚠️ **โปรดพบจักษุแพทย์ครับ:** เพื่อวินิจฉัยและวางแผนรักษาที่เหมาะสม",
+    "pterygium2_advice": "**คำแนะนำสำหรับต้อเนื้อ ระยะที่ 2 (รุนแรง) ครับ:** ต้อเนื้อระยะนี้อาจมีผลต่อการมองเห็นเพราะใกล้เข้าสู้รูม่านตามากๆหรือเข้าสู่รูม่านตาแล้ว ควรไปพบแพทย์โดยเร็วเพื่อประเมินและพิจารณาการรักษา ซึ่งอาจรวมถึงการผ่าตัด",
+    "pterygium2_consult_doctor": "🚨 **โปรดไปพบจักษุแพทย์ด่วนครับ:** เพื่อรับคำวินิจฉัยและรักษา",
+    "red_eye_advice": """**คำแนะนำเพิ่มเติมสำหรับตาแดงครับ:**
+    ตาแดงอาจเกิดได้จากหลายสาเหตุ เช่น การระคายเคือง, ภูมิแพ้, การติดเชื้อ หรือภาวะทางการแพทย์อื่น ๆ แม้ว่ามักจะไม่เป็นอันตราย แต่หากตาแดงมีอาการต่อเนื่องหรือรุนแรง โดยเฉพาะอย่างยิ่งมีอาการปวด, มีขี้ตา, หรือการมองเห็นเปลี่ยนแปลงไป ควรปรึกษาแพทย์""",
+    "red_eye_consult_doctor": "⚠️ **โปรดปรึกษาแพทย์หรือจักษุแพทย์:** เพื่อหาสาเหตุของตาแดงและรับการรักษาที่เหมาะสมครับ",
+    "initial_message": "อัปโหลดหรือถ่ายรูปใน **ขั้นตอนที่ 1** แล้วครอบตัดใน **ขั้นตอนที่ 2** ปุ่มวิเคราะห์จะโผล่มาเมื่อพร้อมใช้งานครับ!",
+    "loading_first_model": "🚀 กำลังโหลดโมเดล AI สำหรับตรวจจับดวงตา...",
+    "loading_sec_model": "🧠 กำลังโหลดโมเดล AI สำหรับวิเคราะห์สภาพตา...",
+    "analyzing_image": "กำลังวิเคราะห์รูปภาพ... กรุณารอสักครู่ครับ",
+    "language_selector_label": "เลือกภาษา",
+    "sidebar_settings_title": "ตั้งค่า"
+  }
 }
-
 # --- Initialize session state for language ---
 if 'language' not in st.session_state:
     st.session_state.language = 'en' # Default to English
@@ -190,14 +179,17 @@ st.markdown("""
 /* Center the main header and add a professional look */
 h1 {
     text-align: center;
-    color: #0E778E; /* A nice, medical-like blue */
+    color: var(--primary-color);
     font-size: 3em;
     font-weight: 700;
 }
 p {
     text-align: center;
-    color: #4A4A4A;
     font-size: 1.1em;
+}
+/* This makes the divider a bit more visible in both themes */
+hr {
+    border-top: 1px solid var(--primary-color);
 }
 .stTabs [data-baseweb="tab-list"] {
     gap: 15px;
@@ -206,22 +198,21 @@ p {
     height: 50px;
     white-space: nowrap;
     border-radius: 4px;
-    background-color: #E6F3F8; /* Light blue background for tabs */
+    background-color: var(--secondary-background-color);
     gap: 5px;
     padding-top: 10px;
     padding-bottom: 10px;
     border-bottom: 2px solid transparent !important;
 }
 .stTabs [aria-selected="true"] {
-    background-color: #B2E3F4; /* A slightly darker blue for selected tab */
-    color: #0E778E !important;
-    border-bottom: 2px solid #0E778E !important;
+    background-color: var(--secondary-background-color);
+    color: var(--primary-color) !important;
+    border-bottom: 2px solid var(--primary-color) !important;
 }
-
 /* Style for the "Analyze" button */
 .stButton>button {
-    background-color: #0E778E;
-    color: white;
+    background-color: var(--primary-color);
+    color: var(--text-color);
     font-size: 1.2em;
     font-weight: bold;
     border-radius: 8px;
@@ -230,9 +221,9 @@ p {
     width: 100%;
 }
 .stButton>button:hover {
-    background-color: #0B5B6E;
+    background-color: var(--secondary-background-color);
+    color: var(--primary-color);
 }
-
 /* Custom styling for the "How to Use" steps */
 .step-container {
     display: flex;
@@ -245,21 +236,19 @@ p {
 .step {
     text-align: center;
     padding: 15px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--secondary-background-color);
     border-radius: 10px;
-    background-color: #F8F9FA;
+    background-color: lightblue;
     flex: 1;
     min-width: 250px;
 }
 .step h3 {
-    color: #0E778E;
+    color: var(--primary-color);
     font-size: 1.2em;
     font-weight: bold;
 }
-
 </style>
 """, unsafe_allow_html=True)
-
 
 # --- Initialize session state for image management ---
 if 'img_raw_bytes' not in st.session_state:
@@ -271,156 +260,57 @@ if 'current_input_method' not in st.session_state:
 
 # --- Load Models (Cached) ---
 @st.cache_resource
-def load_models_from_path():
-    with st.spinner(get_text("loading_first_model")):
-        first_model_path = "EyeDetect.keras"
+def load_first_model():
+    with st.spinner("🚀 Loading AI model for eye detection..."):
         try:
-            first_model = load_model(first_model_path)
+            model = load_model(FIRST_MODEL_PATH)
+            return model
         except Exception as e:
-            st.error(f"Failed to load first model from {first_model_path}. Error: {str(e)}")
+            st.error(f"❌ Failed to load eye detection model: {e}. Please ensure '{FIRST_MODEL_PATH}' is in the correct directory.")
             st.stop()
 
-    with st.spinner(get_text("loading_sec_model")):
-        sec_model_path = "EyeAnalysis.keras"
+@st.cache_resource
+def load_sec_model():
+    with st.spinner("🧠 Loading AI model for eye condition analysis..."):
         try:
-            sec_model = load_model(sec_model_path)
+            model = load_model(SEC_MODEL_PATH)
+            return model
         except Exception as e:
-            st.error(f"Failed to load second model from {sec_model_path}. Error: {str(e)}")
+            st.error(f"❌ Failed to load eye condition model: {e}. Please ensure '{SEC_MODEL_PATH}' is in the correct directory.")
             st.stop()
 
-    return first_model, sec_model
-
-first_model, sec_model = load_models_from_path()
-st.success(f"✅")
+first_model = load_first_model()
+sec_model = load_sec_model()
 
 # --- Preprocessing ---
-def preprocess_image(image_np):
-    """
-    Fixed preprocessing function to match model input shape (280, 320, 3)
-    Resizes, converts to 3 channels, and prepares image for model input.
-    """
-    if not isinstance(image_np, np.ndarray):
-        st.error("Input image is not a valid numpy array.")
-        return None
-
-    # ตรวจสอบและแปลงให้เป็น RGB 3 channels
-    if image_np.ndim == 2:  # Grayscale image (H, W)
-        image_rgb = cv2.cvtColor(image_np, cv2.COLOR_GRAY2RGB)
-    elif image_np.ndim == 3:
-        if image_np.shape[2] == 1:  # Grayscale image (H, W, 1)
-            image_rgb = np.repeat(image_np, 3, axis=2)
-        elif image_np.shape[2] == 3:  # RGB หรือ BGR image (H, W, 3)
-            image_rgb = image_np.copy()
-        elif image_np.shape[2] == 4:  # RGBA image (H, W, 4)
-            image_rgb = image_np[:, :, :3]
-        else:
-            st.error(f"Unsupported image format: shape {image_np.shape}")
-            return None
-    else:
-        st.error(f"Unsupported image dimensions: {image_np.ndim}D")
-        return None
-
-    # Resize ให้ตรงกับที่โมเดลต้องการ: height=280, width=320
-    # cv2.resize ใช้ (width, height) ดังนั้นต้องสลับ
-    image_resized = cv2.resize(image_rgb, (TARGET_SIZE[1], TARGET_SIZE[0]))
-    
-    # Normalize และเพิ่ม batch dimension
-    image_normalized = image_resized.astype("float32") / 255.0
-    image_array = np.expand_dims(image_normalized, axis=0)
-    
+def preprocess_image(image_np, target_size=(320, 280)):
+    """Resizes, converts to RGB, and expands dimensions for model input."""
+    image_resized = cv2.resize(image_np, target_size)
+    image_rgb = cv2.cvtColor(image_resized, cv2.COLOR_BGR2RGB)
+    image_array = np.expand_dims(image_rgb.astype("float32"), axis=0)
     return image_array
 
-# แก้ไข prediction functions ให้มี debug
+# --- Prediction Logic ---
 def predict_eye_detection(image_np):
-    """Fixed prediction with proper preprocessing and debug info"""
     processed_image = preprocess_image(image_np)
-    if processed_image is None:
-        return "No Eye Detected", 0.0
-    
-    try:
-        prediction = first_model.predict(processed_image)[0]
-        predicted_class_index = np.argmax(prediction)
-        confidence = prediction[predicted_class_index]
-        return FIRST_CLASS_NAMES[predicted_class_index], confidence
-    except Exception as e:
-        st.error(f"Error in eye detection prediction: {e}")
-        return "Error", 0.0
+    prediction = first_model.predict(processed_image)[0]
+    predicted_class_index = np.argmax(prediction)
+    confidence = prediction[predicted_class_index]
+    return FIRST_CLASS_NAMES[predicted_class_index], confidence
 
 def predict_eye_condition(image_np):
-    """Fixed prediction with proper preprocessing and debug info"""
     processed_image = preprocess_image(image_np)
-    if processed_image is None:
-        return "Uncertain", 0.0
-    
-    try:
-        prediction = sec_model.predict(processed_image)[0]
-        top_2 = np.sort(prediction)[-2:]
-        confidence = top_2[-1]
-        margin = top_2[-1] - top_2[-2]
-        predicted_class_index = np.argmax(prediction)
+    prediction = sec_model.predict(processed_image)[0]
 
-        if confidence < CONFIDENCE_THRESHOLD or margin < MARGIN_THRESHOLD:
-            return "Uncertain", confidence
-        return SEC_CLASS_NAMES[predicted_class_index], confidence
-    except Exception as e:
-        st.error(f"Error in condition analysis prediction: {e}")
-        return "Error", 0.0
+    top_2 = np.sort(prediction)[-2:]
+    confidence = top_2[-1]
+    margin = top_2[-1] - top_2[-2]
 
-# แก้ไข handle_image_input function
-def handle_image_input(uploaded_bytes, method_name, cropper_key):
-    """Fixed image handling with proper preprocessing."""
-    
-    if (uploaded_bytes is not None and st.session_state.img_raw_bytes != uploaded_bytes) or \
-       (st.session_state.current_input_method != method_name and uploaded_bytes is not None):
-        st.session_state.img_raw_bytes = uploaded_bytes
-        st.session_state.img_for_prediction = None
-        st.session_state.current_input_method = method_name
-        st.rerun()
+    predicted_class_index = np.argmax(prediction)
 
-    elif uploaded_bytes is None and st.session_state.current_input_method == method_name:
-        if st.session_state.img_raw_bytes is not None:
-            st.session_state.img_raw_bytes = None
-            st.session_state.img_for_prediction = None
-            st.session_state.current_input_method = "none"
-            st.rerun()
-
-    if st.session_state.current_input_method == method_name and st.session_state.img_raw_bytes:
-        # Decode image
-        img_np_decoded = cv2.imdecode(np.frombuffer(st.session_state.img_raw_bytes, np.uint8), cv2.IMREAD_COLOR)
-        if img_np_decoded is None:
-            st.error("Failed to decode the image. Please try a different image format.")
-            st.session_state.img_raw_bytes = None
-            return
-
-        # แปลง BGR เป็น RGB สำหรับ PIL
-        img_rgb_for_pil = cv2.cvtColor(img_np_decoded, cv2.COLOR_BGR2RGB)
-        img_pil = Image.fromarray(img_rgb_for_pil)
-        
-        st.markdown(f"### {get_text('crop_step_title')}")
-        st.info(get_text("crop_step_info"))
-        
-        # Cropper aspect ratio ตรงกับโมเดล: width=320, height=280
-        cropped_img = st_cropper(
-            img_pil,
-            aspect_ratio=CROPPER_ASPECT_RATIO, # width, height
-            box_color='#0E778E',
-            key=cropper_key
-        )
-        
-        if cropped_img:
-            # แปลง PIL เป็น numpy (จะเป็น RGB แล้ว)
-            img_np_cropped = np.array(cropped_img)
-            
-            # Preprocess สำหรับ prediction
-            preprocessed_for_prediction = preprocess_image(img_np_cropped)
-            if preprocessed_for_prediction is not None:
-                st.session_state.img_for_prediction = preprocessed_for_prediction
-            
-            st.markdown("---")
-            st.image(cropped_img, caption=get_text("cropped_image_caption"), use_container_width=True)
-            st.markdown("---")
-        else:
-            st.session_state.img_for_prediction = None
+    if confidence < CONFIDENCE_THRESHOLD or margin < MARGIN_THRESHOLD:
+        return "Uncertain", confidence
+    return SEC_CLASS_NAMES[predicted_class_index], confidence
 
 # --- Helper Function for Display ---
 def display_prediction_result(label, confidence, is_eye_detection=False):
@@ -513,6 +403,51 @@ st.info(get_text("tip_info"))
 
 tab1, tab2= st.tabs([get_text("tab_upload_image"), get_text("tab_use_camera")])
 
+# --- Function to handle image processing and cropping ---
+def handle_image_input(uploaded_bytes, method_name, cropper_key):
+    # Case 1: A new raw image is provided OR the input method has switched
+    if (uploaded_bytes is not None and st.session_state.img_raw_bytes != uploaded_bytes) or \
+       (st.session_state.current_input_method != method_name and uploaded_bytes is not None):
+        st.session_state.img_raw_bytes = uploaded_bytes
+        st.session_state.img_for_prediction = None  # Clear previously cropped image
+        st.session_state.current_input_method = method_name
+        st.rerun() # Trigger a rerun to clear old display elements and re-render with new raw image for cropper
+
+    # Case 2: The 'x' button was clicked, or camera input was cleared (uploaded_bytes is None)
+    # and the current method matches. This means the user explicitly cleared the input.
+    elif uploaded_bytes is None and st.session_state.current_input_method == method_name:
+        if st.session_state.img_raw_bytes is not None: # Only clear if there was an image to begin with
+            st.session_state.img_raw_bytes = None
+            st.session_state.img_for_prediction = None
+            st.session_state.current_input_method = "none" # Reset active method
+            st.rerun() # Trigger a rerun to clear the display
+
+    # If the current input method is active and we have raw image bytes
+    if st.session_state.current_input_method == method_name and st.session_state.img_raw_bytes:
+        # Decode bytes to numpy array using OpenCV
+        img_np_decoded = cv2.imdecode(np.frombuffer(st.session_state.img_raw_bytes, np.uint8), cv2.IMREAD_COLOR)
+        # Convert OpenCV's BGR to PIL's RGB
+        img_pil = Image.fromarray(cv2.cvtColor(img_np_decoded, cv2.COLOR_BGR2RGB))
+
+        st.markdown("### ✂️ Step 2: Crop Your Image")
+        st.info("**Drag the box** to perfectly frame your eye. A precise crop leads to more accurate analysis.")
+        cropped_img = st_cropper(
+            img_pil,
+            aspect_ratio=(320, 280),
+            box_color='#FF4B4B', # A distinct color for the crop box
+            key=cropper_key
+        )
+        if cropped_img:
+            # Update the image for prediction ONLY if the cropper provides a valid output
+            st.session_state.img_for_prediction = cv2.cvtColor(np.array(cropped_img), cv2.COLOR_BGR2RGB) # Ensure RGB for further processing
+            st.markdown("---")
+            st.image(cropped_img, caption="✅ Cropped Image Ready for Analysis", use_container_width=True)
+            st.markdown("---")
+        else:
+            # If cropped_img is None (e.g., first render of cropper after new upload), ensure img_for_prediction is cleared
+            st.session_state.img_for_prediction = None
+
+
 # --- Image Input & Cropping using Tabs ---
 with tab1:
     st.markdown(f"### {get_text('upload_section_title')}")
@@ -547,17 +482,15 @@ if st.session_state.img_for_prediction is not None:
             col1, col2 = st.columns(2)
             with col1:
                 st.markdown(f"#### {get_text('eye_detection_result_title')}")
-                eye_label, eye_confidence = predict_eye_detection(np.array(st.session_state.img_for_prediction).squeeze(0))
+                eye_label, eye_confidence = predict_eye_detection(st.session_state.img_for_prediction)
                 display_prediction_result(eye_label, eye_confidence, is_eye_detection=True)
-            
             if "No Eye Detected" in eye_label and eye_confidence > CONFIDENCE_THRESHOLD:
-                with col2:
-                    st.markdown(f"#### {get_text('eye_condition_analysis_title')}")
-                    st.warning(get_text("cannot_analyze_condition"))
+                col2.markdown(f"#### {get_text('eye_condition_analysis_title')}")
+                col2.warning(get_text("cannot_analyze_condition"))
             else:
                 with col2:
                     st.markdown(f"#### {get_text('eye_condition_analysis_title')}")
-                    condition_label, condition_confidence = predict_eye_condition(np.array(st.session_state.img_for_prediction).squeeze(0))
+                    condition_label, condition_confidence = predict_eye_condition(st.session_state.img_for_prediction)
                     display_prediction_result(condition_label, condition_confidence)
 else:
     st.info(get_text("initial_message"))
