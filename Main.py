@@ -283,7 +283,7 @@ first_model = load_first_model()
 sec_model = load_sec_model()
 
 # --- Preprocessing ---
-def preprocess_image(image_np, target_size=(320, 280)):
+def preprocess_image(image_np, target_size=(280, 320)):
     if len(image_np.shape) == 2 or image_np.shape[2] == 1:
         image_np = cv2.cvtColor(image_np, cv2.COLOR_GRAY2RGB)
     image_resized = cv2.resize(image_np, target_size)
