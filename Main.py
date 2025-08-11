@@ -284,13 +284,12 @@ sec_model = load_sec_model()
 
 # --- Preprocessing ---
 def preprocess_image(image_np, target_size=(320, 280)):
-    if image_pil.mode != 'RGB':
-        image_pil = image_pil.convert('RGB')
-    image_resized = image_pil.resize(target_size)
-    image_array = np.array(image_resized).astype("float32")
-    image_array = np.expand_dims(image_array, axis=0)
-    
-    return image_array
+    if len(image_np.shape) == 2 or image_np.shape[2] == 1:
+        image_np = cv2.cvtColor(image_np, cv2.COLOR_GRAY2RGB)
+    image_resized = cv2.resize(image_np, target_size)
+    image_resized = image_resized.astype("float32") / 255.0
+    image_resized = np.expand_dims(image_resized, axis=0)
+    return image_resized
 
 # --- Prediction Logic ---
 def predict_eye_detection(image_np):
@@ -407,43 +406,58 @@ tab1, tab2= st.tabs([get_text("tab_upload_image"), get_text("tab_use_camera")])
 
 # --- Function to handle image processing and cropping ---
 def handle_image_input(uploaded_bytes, method_name, cropper_key):
-    if (uploaded_bytes is not None and st.session_state.img_raw_bytes != uploaded_bytes) or \
-       (st.session_state.current_input_method != method_name and uploaded_bytes is not None):
+    # ตรวจสอบว่ามีการอัปโหลดไฟล์ใหม่หรือเปลี่ยนวิธีใส่ข้อมูลหรือไม่
+    if uploaded_bytes is not None and (st.session_state.img_raw_bytes != uploaded_bytes or st.session_state.current_input_method != method_name):
         st.session_state.img_raw_bytes = uploaded_bytes
         st.session_state.img_for_prediction = None
         st.session_state.current_input_method = method_name
         st.rerun()
+    # ตรวจสอบว่าผู้ใช้กดลบรูปภาพหรือไม่
+    elif uploaded_bytes is None and st.session_state.img_raw_bytes is not None and st.session_state.current_input_method == method_name:
+        st.session_state.img_raw_bytes = None
+        st.session_state.img_for_prediction = None
+        st.session_state.current_input_method = "none"
+        st.rerun()
 
-    elif uploaded_bytes is None and st.session_state.current_input_method == method_name:
-        if st.session_state.img_raw_bytes is not None:
+    # แสดงผลและรอการครอบตัด หากมีรูปภาพใน session state
+    if st.session_state.img_raw_bytes is not None and st.session_state.current_input_method == method_name:
+        try:
+            # Decode bytes to numpy array using OpenCV
+            img_np_decoded = cv2.imdecode(np.frombuffer(st.session_state.img_raw_bytes, np.uint8), cv2.IMREAD_COLOR)
+
+            # Ensure the image has 3 channels. If it's a grayscale image, its shape will be (H, W) or (H, W, 1).
+            # We explicitly convert it to RGB.
+            if len(img_np_decoded.shape) == 2 or img_np_decoded.shape[2] == 1:
+                img_rgb = cv2.cvtColor(img_np_decoded, cv2.COLOR_GRAY2RGB)
+            else:
+                img_rgb = cv2.cvtColor(img_np_decoded, cv2.COLOR_BGR2RGB)
+
+            img_pil = Image.fromarray(img_rgb)
+            
+            st.markdown(f"### {get_text('crop_step_title')}")
+            st.info(get_text("crop_step_info"))
+            
+            cropped_img_pil = st_cropper(
+                img_pil,
+                aspect_ratio=(320, 280),
+                box_color='#FF4B4B',
+                key=cropper_key
+            )
+            
+            if cropped_img_pil:
+                st.session_state.img_for_prediction = cropped_img_pil
+                st.markdown("---")
+                st.image(cropped_img_pil, caption=get_text("cropped_image_caption"), use_container_width=True)
+                st.markdown("---")
+            else:
+                st.session_state.img_for_prediction = None
+
+        except Exception as e:
+            st.error(f"Error processing image: {e}")
             st.session_state.img_raw_bytes = None
             st.session_state.img_for_prediction = None
-            st.session_state.current_input_method = "none"
             st.rerun()
-
-    if st.session_state.current_input_method == method_name and st.session_state.img_raw_bytes:
-        # Decode bytes to numpy array using OpenCV
-        img_np_decoded = cv2.imdecode(np.frombuffer(st.session_state.img_raw_bytes, np.uint8), cv2.IMREAD_COLOR)
-        img_rgb = cv2.cvtColor(img_np_decoded, cv2.COLOR_BGR2RGB)
-        img_pil = Image.fromarray(img_rgb)
-
-        st.markdown(f"### {get_text('crop_step_title')}")
-        st.info(get_text("crop_step_info"))
-        cropped_img_pil = st_cropper(
-            img_pil,
-            aspect_ratio=(320, 280),
-            box_color='#FF4B4B',
-            key=cropper_key
-        )
-        if cropped_img_pil:
-            st.session_state.img_for_prediction = cropped_img_pil
-            st.markdown("---")
-            st.image(cropped_img_pil, caption=get_text("cropped_image_caption"), use_container_width=True)
-            st.markdown("---")
-        else:
-            st.session_state.img_for_prediction = None
-
-
+            
 # --- Image Input & Cropping using Tabs ---
 with tab1:
     st.markdown(f"### {get_text('upload_section_title')}")
